@@ -133,6 +133,9 @@
   function gaulComposition(totalMen, group, tribeId, scale) { return allot(splitUnits(totalMen, scale).length, GAUL_SPECIAL[tribeId] || GAUL_PROFILE[group] || GAUL_PROFILE[1]); }
 
   // ---------------------------------------------------------------- Zustand
+  function makeUnit(s, side, type, men, morale) {
+    return { id: s.nextId++, side, type, men, max: s.scale[side], form: 'phalanx', morale: Math.max(20, Math.min(100, morale + (side === 'G' ? Math.round((s.rnd() - 0.5) * 10) : 0))), col: -1, row: -1, acted: false, moved: 0, routed: false, gone: false, killed: 0, fledMen: 0, pilum: false, placed: false };
+  }
   function newBattle(opts) {
     // opts: {tribeId, seed, romanMen, romanMorale (0-9 mv), cavalry, gaulMen, group, hostile}
     const R = rng((opts.seed || 1) * 31 + 7);
@@ -140,11 +143,16 @@
     const sc = unitScale(opts.romanMen); s.scale = { R: sc, G: sc };         // beide Seiten gleiche Einheitengroesse, bestimmt vom roemischen Heer
     const rc = romanComposition(opts.romanMen, !!opts.cavalry, sc), rm = splitUnits(opts.romanMen, sc), gc = gaulComposition(opts.gaulMen, opts.group, opts.tribeId, sc), gm = splitUnits(opts.gaulMen, sc);
     const moraleR = Math.min(100, 52 + (opts.romanMorale == null ? 5 : opts.romanMorale) * 5), moraleG = opts.hostile ? K.hostileG : K.moraleG;
-    const mk = (side, type, men, morale) => ({ id: s.nextId++, side, type, men, max: s.scale[side], form: 'phalanx', morale: Math.max(20, Math.min(100, morale + (side === 'G' ? Math.round((R() - 0.5) * 10) : 0))), col: -1, row: -1, acted: false, moved: 0, routed: false, gone: false, killed: 0, fledMen: 0, pilum: false, placed: false });
+    const mk = (side, type, men, morale) => makeUnit(s, side, type, men, morale);
     let k = 0;
     for (const t of ['legion', 'archer', 'cav']) for (let i = 0; i < (rc[t] || 0); i++) s.units.push(mk('R', t, rm[k++] || UNIT_MEN, moraleR));
     k = 0; for (const t of ['spear', 'sword', 'sling', 'archer', 'cav']) for (let i = 0; i < (gc[t] || 0); i++) s.units.push(mk('G', t, gm[k++] || UNIT_MEN, moraleG));
     s.startUnits.R = s.units.filter(u => u.side === 'R').length; s.startUnits.G = s.units.filter(u => u.side === 'G').length;
+    // Reserve: Mann, die nicht ins Aufgebot passten (hoechstens 40 Einheiten); sie ruecken nach, sobald Einheiten vernichtet werden oder fliehen
+    const sum = side => s.units.filter(u => u.side === side).reduce((a, u) => a + u.men, 0);
+    s.reserve = { R: Math.max(0, opts.romanMen - sum('R')), G: Math.max(0, opts.gaulMen - sum('G')) }; s.reinf = { R: 0, G: 0 };
+    s.shares = { R: { archer: 0.12, cav: opts.cavalry ? 0.10 : 0, legion: opts.cavalry ? 0.78 : 0.88 }, G: GAUL_SPECIAL[opts.tribeId] || GAUL_PROFILE[opts.group] || GAUL_PROFILE[1] };
+    s.baseMorale = { R: moraleR, G: moraleG };
     return s;
   }
   const alive = (s, side) => s.units.filter(u => u.side === side && !u.gone && u.men > 0);
@@ -324,6 +332,35 @@
       for (const [a, b] of nbrs(c, r)) { if (ground(s, a, b).impass) continue; const o = unitAt(s, a, b); if (o && o.side !== u.side) continue; const nc = cost + moveCost(s, u, a, b); if (nc > mp) continue; if (nc < (best.get(key(a, b)) ?? 99)) { best.set(key(a, b), nc); open.push([nc, a, b]); } } }
     return best;
   }
+  // ---- Verstaerkung aus der Reserve
+  const reserveUnits = (s, side) => Math.ceil(s.reserve[side] / s.scale[side]);
+  function pickType(s, side) {
+    const alive = s.units.filter(u => u.side === side && !u.gone), n = alive.length + 1; let best = null, bd = -1e9;
+    for (const [t, sh] of Object.entries(s.shares[side])) { const d = sh * n - alive.filter(u => u.type === t).length; if (sh > 0 && d > bd) { bd = d; best = t; } }
+    return best || (side === 'R' ? 'legion' : 'spear');
+  }
+  function reinforceHex(s, side) {
+    const order = Array.from({ length: COLS }, (_, i) => i).sort((a, b) => Math.abs(a - 7.5) - Math.abs(b - 7.5));
+    const rows = side === 'R' ? [ROWS - 1, ROWS - 2, ROWS - 3] : [0, 1, 2], fake = { side };
+    for (const strict of [true, false]) for (const r of rows) for (const c of order) {
+      if (ground(s, c, r).impass || unitAt(s, c, r)) continue;
+      if (strict && enemyAdj(s, fake, c, r)) continue;
+      return [c, r];
+    }
+    return null;
+  }
+  const MAX_ARRIVALS = 4;
+  function reinforce(s, side) {
+    if (s.phase !== 'fight' || s.over) return 0;
+    let slots = s.units.filter(u => u.side === side && u.gone).length - s.reinf[side], n = 0;
+    while (slots > 0 && s.reserve[side] >= 60 && n < MAX_ARRIVALS) {
+      const hex = reinforceHex(s, side); if (!hex) break;
+      const men = Math.min(s.scale[side], s.reserve[side]), type = pickType(s, side), u = makeUnit(s, side, type, men, s.baseMorale[side]);
+      u.col = hex[0]; u.row = hex[1]; u.placed = true; s.units.push(u); s.reserve[side] -= men; s.reinf[side]++; slots--; n++;
+      note(s, `Verstärkung trifft ein: ${UT[type].name} (${men} Mann${side === 'G' ? ', Gallier' : ''})`);
+    }
+    return n;
+  }
   // Wer von fliehenden Kameraden umgeben ist, verliert den Mut: mind. 2 fliehende Nachbarn, oder alle Nachbarn fliehen
   function panicCheck(s, side) {
     for (const u of fighting(s, side)) {
@@ -333,11 +370,11 @@
   }
   function endSide(s) {                                                              // Seite beendet ihren Zug
     if (s.over) return;
-    if (s.side === 'R') { s.side = 'G'; resetSide(s, 'G'); rallyAndFlee(s, 'G'); panicCheck(s, 'G'); }
-    else { s.turn++; s.side = 'R'; resetSide(s, 'R'); rallyAndFlee(s, 'R'); panicCheck(s, 'R'); if (s.turn > s.maxTurns) { s.over = decide(s, 'turns'); } }
+    if (s.side === 'R') { s.side = 'G'; resetSide(s, 'G'); rallyAndFlee(s, 'G'); panicCheck(s, 'G'); reinforce(s, 'G'); }
+    else { s.turn++; s.side = 'R'; resetSide(s, 'R'); rallyAndFlee(s, 'R'); panicCheck(s, 'R'); reinforce(s, 'R'); if (s.turn > s.maxTurns) { s.over = decide(s, 'turns'); } }
     checkEnd(s);
   }
-  const strength = (s, side) => s.units.filter(u => u.side === side && !u.gone && u.men > 0).reduce((a, u) => a + u.men * (u.routed ? 0.2 : 1), 0);
+  const strength = (s, side) => s.units.filter(u => u.side === side && !u.gone && u.men > 0).reduce((a, u) => a + u.men * (u.routed ? 0.2 : 1), 0) + (s.reserve ? s.reserve[side] * 0.5 : 0);
   function decide(s, why) {
     const r = strength(s, 'R'), g = strength(s, 'G');
     return { winner: r > g * 1.2 ? 'R' : g > r * 1.2 ? 'G' : null, why };
@@ -347,6 +384,8 @@
     for (const side of ['R', 'G']) {
       const start = s.startUnits[side], fit = fighting(s, side).length;
       if (side === 'G' && !s.panicG && fit <= start * K.panicAt) { s.panicG = true; for (const u of fighting(s, 'G')) { u.morale -= 12; checkBreakSoft(s, u); } note(s, 'Panik unter den Galliern'); }
+      const hasReserve = s.reserve && s.reserve[side] >= 60;
+      if (hasReserve && (fit === 0 || fit <= start * 0.2)) continue;          // Reserve ruecken nach: Heer ist noch nicht gebrochen
       if (fit === 0 || fit <= start * 0.2) {
         for (const u of fighting(s, side)) u.routed = true;
         s.over = { winner: enemyOf(side), why: fit === 0 ? 'vernichtet oder geflohen' : 'Heer bricht zusammen' }; return;
@@ -359,7 +398,7 @@
   }
   // Ergebnis in Mann: Gefallene und Fluechtige je Seite
   function result(s) {
-    const o = { rKilled: 0, rFled: 0, gKilled: 0, gFled: 0, turns: s.turn, winner: s.over ? s.over.winner : null, retreat: !!(s.over && s.over.retreat), why: s.over ? s.over.why : '' };
+    const o = { rKilled: 0, rFled: 0, gKilled: 0, gFled: 0, reserveR: s.reserve ? s.reserve.R : 0, reserveG: s.reserve ? s.reserve.G : 0, arrivedR: s.reinf ? s.reinf.R : 0, arrivedG: s.reinf ? s.reinf.G : 0, turns: s.turn, winner: s.over ? s.over.winner : null, retreat: !!(s.over && s.over.retreat), why: s.over ? s.over.why : '' };
     for (const u of s.units) {
       const fled = u.gone && u.fledMen ? u.fledMen : (u.routed && !u.gone && u.men > 0 ? u.men : 0);
       if (u.side === 'R') { o.rKilled += u.killed; o.rFled += fled; } else { o.gKilled += u.killed; o.gFled += fled; }
@@ -415,7 +454,7 @@
     return result(s);
   }
 
-  const API = { K, unitScale, rangeOf, marchable, setFormation, cut, panicCheck, cohesion, rallyAndFlee, COLS, ROWS, UNIT_MEN, MAX_UNITS, MAX_TURNS, TERR, UT, FAR, SITES, rng, nbrs, dist, key, inB, genTerrain, siteName, splitUnits, romanComposition, gaulComposition, newBattle,
+  const API = { K, reinforce, reserveUnits, unitScale, rangeOf, marchable, setFormation, cut, panicCheck, cohesion, rallyAndFlee, COLS, ROWS, UNIT_MEN, MAX_UNITS, MAX_TURNS, TERR, UT, FAR, SITES, rng, nbrs, dist, key, inB, genTerrain, siteName, splitUnits, romanComposition, gaulComposition, newBattle,
     alive, fighting, unitAt, ground, zone, enemyOf, place, pickUp, freeZoneHexes, autoDeploy, allPlaced, startFight, reach, pathTo, targetsFrom, expected, attack, moveUnit,
     resetSide, endSide, checkEnd, retreatAll, result, aiPlay, aiNext, autoPlay, power, defense, strength, routLimit, enemyAdj, adjacentFriends, adjacentEnemies };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.TAC = API;

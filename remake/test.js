@@ -264,6 +264,31 @@ const add = (s, side, type, c, r, men = 500) => { const u = { id: s.nextId++, si
 for (const [r, g] of [[18000, 20000], [36000, 30000], [15579, 15000], [4500, 4500]]) for (let i = 1; i <= 8; i++) { const bs = TAC.newBattle({ tribeId: 1 + i * 3, seed: i, romanMen: r, romanMorale: 5, gaulMen: g, group: i % 4, cavalry: i % 2 === 0 });
   const res = TAC.autoPlay(bs); assert(bs.over && res.rKilled <= r && res.gKilled <= g); assert(bs.units.every(u => u.men >= 0 && u.men <= u.max)); }
 
+// --- Taktik: Verstaerkung aus der Reserve
+{
+  const rb = TAC.newBattle({ tribeId: 19, seed: 3, romanMen: 4500, romanMorale: 5, gaulMen: 30000, group: 1, hostile: false });
+  assert.equal(rb.units.filter(u => u.side === 'G').length, 40); assert.equal(rb.reserve.G, 10000); assert.equal(rb.reserve.R, 0);               // 20 000 im Aufgebot, 10 000 in Reserve
+  TAC.autoDeploy(rb, 'R'); TAC.startFight(rb); assert.equal(rb.units.length, 49);
+  // nichts verloren -> keine Verstaerkung
+  TAC.endSide(rb); assert.equal(rb.units.length, 49); assert.equal(rb.reserve.G, 10000);
+  // drei gallische Einheiten vernichtet bzw. geflohen -> Nachschub zu Beginn des gallischen Zuges
+  const gs = rb.units.filter(u => u.side === 'G'); gs[0].gone = true; gs[0].men = 0; gs[1].gone = true; gs[1].fledMen = 200; gs[2].gone = true; gs[2].men = 0;
+  rb.side = 'R'; TAC.endSide(rb); assert.equal(rb.units.length, 52); assert.equal(rb.reserve.G, 10000 - 3 * 500); assert.equal(rb.reinf.G, 3);
+  const arr = rb.units.slice(-3); assert(arr.every(u => u.side === 'G' && u.row <= 2 && u.placed && u.men === 500 && !u.routed)); assert(rb.log.some(l => l.text.startsWith('Verstärkung')));
+  assert.equal(new Set(rb.units.filter(u => !u.gone).map(u => u.col + ',' + u.row)).size, rb.units.filter(u => !u.gone).length);                  // keine Doppelbelegung
+  // pro Zug hoechstens 4 Ankuenfte, Nachschub nur fuer tatsaechlich Weggefallene
+  for (const u of rb.units.filter(u => u.side === 'G' && !u.gone).slice(0, 6)) { u.gone = true; u.men = 0; } rb.side = 'R'; const before = rb.units.length; TAC.endSide(rb); assert.equal(rb.units.length - before, 4); assert.equal(rb.reinf.G, 7);
+  rb.side = 'R'; TAC.endSide(rb); assert.equal(rb.reinf.G, 9);                                                                                             // Rest folgt im naechsten Zug
+  // Heer mit Reserve bricht nicht zusammen, solange nachgerueckt werden kann; ohne Reserve schon
+  const eb = TAC.newBattle({ tribeId: 19, seed: 4, romanMen: 4500, romanMorale: 5, gaulMen: 25000, group: 1 }); TAC.autoDeploy(eb, 'R'); TAC.startFight(eb);
+  for (const u of eb.units.filter(u => u.side === 'G')) { u.gone = true; u.men = 0; } TAC.checkEnd(eb); assert(!eb.over, 'Reserve verhindert Niederlage'); eb.reserve.G = 0; TAC.checkEnd(eb); assert(eb.over && eb.over.winner === 'R');
+  // Rueckgabe
+  const ar = TAC.autoPlay(TAC.newBattle({ tribeId: 19, seed: 5, romanMen: 4500, romanMorale: 5, gaulMen: 26000, group: 1 })); assert(ar.arrivedG >= 0 && ar.reserveG >= 0 && ar.reserveR === 0);
+  // Roemer mit Reserve (grosses Heer)
+  const rr = TAC.newBattle({ tribeId: 19, seed: 6, romanMen: 24000, romanMorale: 5, gaulMen: 5000, group: 1 }); assert.equal(rr.units.filter(u => u.side === 'R').length, 40); assert.equal(rr.reserve.R, 4000);
+  TAC.autoDeploy(rr, 'R'); TAC.startFight(rr); const rs = rr.units.filter(u => u.side === 'R'); rs[0].gone = true; rs[0].men = 0; rr.side = 'G'; TAC.endSide(rr); assert.equal(rr.units.length - rs.length - rr.units.filter(u => u.side === 'G').length, 1); assert.equal(rr.reserve.R, 3500);
+}
+
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {
   const g = JC.createGame(sp, seeded(seed)); let years = 0;
