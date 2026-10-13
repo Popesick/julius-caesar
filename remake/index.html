@@ -183,7 +183,7 @@
     </div>
   </div>
   <aside>
-    <section class="card banner"><img src="assets/caesar.jpg?v=20261013f" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
+    <section class="card banner"><img src="assets/caesar.jpg?v=20261013g" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
     <section class="card" id="rankCard" hidden></section>
     <section class="card" id="tribeCard"></section>
     <section class="card"><h2>Legionen</h2><div class="legions" id="legions"></div>
@@ -192,7 +192,7 @@
   </aside>
 </main>
 <div id="title" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013f)"></div><div class="scrfade"></div>
+  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013g)"></div><div class="scrfade"></div>
   <div class="titlebox">
     <div class="kicker">Gallien · 58 – 50 v. Chr.</div>
     <h1>JULIUS CAESAR</h1>
@@ -206,7 +206,7 @@
   </div>
 </div>
 <div id="setup" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013f); opacity:.22"></div>
+  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013g); opacity:.22"></div>
   <div class="setupbox">
     <div><h2>Feldzug vorbereiten</h2><p class="lead">Wähle Schwierigkeitsgrad und Spielmodus. Danach beginnt dein Statthalteramt in der Provinz.</p></div>
     <div class="cols">
@@ -233,11 +233,11 @@
 <div id="errbar" hidden style="position:fixed;left:0;right:0;bottom:0;z-index:99;background:#7a2a22;color:#fff;padding:10px 16px;font-size:14px"></div>
 <dialog id="dlg"></dialog>
 
-<script src="data.js?v=20261013f"></script>
-<script src="engine.js?v=20261013f"></script>
-<script src="music.js?v=20261013f"></script>
-<script src="map.js?v=20261013f"></script>
-<script src="tactics.js?v=20261013f"></script>
+<script src="data.js?v=20261013g"></script>
+<script src="engine.js?v=20261013g"></script>
+<script src="music.js?v=20261013g"></script>
+<script src="map.js?v=20261013g"></script>
+<script src="tactics.js?v=20261013g"></script>
 <script>
 'use strict';
 window.addEventListener('error', e => { const b = document.getElementById('errbar'); if (b) { b.hidden = false; b.textContent = 'Fehler: ' + e.message + ' – bitte die Seite mit Strg+F5 (Cache leeren) neu laden. Besteht das Problem weiter, bitte melden.'; } });
@@ -257,7 +257,7 @@ const SP_TEXT = {
 /* ---------- Dialoge ---------- */
 const dlg = $('#dlg');
 dlg.addEventListener('cancel', e => e.preventDefault());
-const VER = '20261013f';
+const VER = '20261013g';
 const pic = (n, cls = '') => n ? `<img class="pic ${cls}" src="assets/${n}.jpg?v=${VER}" alt="" onerror="this.remove()">` : '';
 function ask({ title, html = '', img = '', buttons = [{ label: 'Weiter', value: true, cls: 'primary' }], mount }) {
   return new Promise(res => {
@@ -611,7 +611,8 @@ function tacticalBattle(b, x) {
         add('circle', { cx: X, cy: Y, r: 13.5, fill: TCOL[u.side], stroke: mcolor(u.morale), 'stroke-width': 2.6, 'stroke-dasharray': u.routed ? '3 2' : '' }, g);
         if (u === sel) add('circle', { cx: X, cy: Y, r: 17, fill: 'none', stroke: '#fff', 'stroke-width': 2.2 }, g);
         const l = add('text', { x: X, y: Y - 1, 'text-anchor': 'middle', 'font-size': u.type === 'sling' ? 9 : 12, 'font-weight': 700, fill: '#fff' }, g); l.textContent = U[u.type].ab;
-        const m = add('text', { x: X, y: Y + 9, 'text-anchor': 'middle', 'font-size': 7.5, fill: 'rgba(255,255,255,.92)' }, g); m.textContent = u.routed ? 'flieht' : u.men;
+        const m = add('text', { x: X, y: Y + 9, 'text-anchor': 'middle', 'font-size': u.men >= 1000 ? 6.6 : 7.5, fill: 'rgba(255,255,255,.92)' }, g); m.textContent = u.routed ? 'flieht' : u.men;
+        if (u.form === 'march' && !u.routed) { const mb = add('text', { x: X + 11, y: Y - 9, 'font-size': 11, 'font-weight': 700, fill: '#ffd27a' }, g); mb.textContent = '»'; }
       }
       for (let r = 0; r < S.rows; r++) for (let c = 0; c < S.cols; c++) { const h = add('polygon', { points: hexPts(c, r), class: 'hx', fill: 'transparent' }); h.addEventListener('click', () => onHex(c, r)); h.addEventListener('mouseenter', () => { hoverU = TAC.unitAt(S, c, r) || null; info(); }); }
       info(); tray(); bar();
@@ -620,7 +621,7 @@ function tacticalBattle(b, x) {
     function unitCard(u) {
       const D = U[u.type], t = TAC.ground(S, u.col, u.row);
       return `<b>${u.side === 'R' ? 'Römer' : T.name}: ${D.name}</b> · ${u.men}/${u.max} Mann<div class="mbar"><i style="width:${Math.max(0, u.morale)}%;background:${mcolor(u.morale)}"></i></div>
-        <div class="hint">Moral ${Math.round(u.morale)}% · Gelände: ${t.name}${u.routed ? ' · <span class="bad">auf der Flucht</span>' : ''}${u.acted && S.phase === 'fight' ? ' · bereits gehandelt' : ''}</div><div class="hint" style="margin-top:4px">${D.desc}</div>`;
+        <div class="hint">Moral ${Math.round(u.morale)}% · Gelände: ${t.name}${TAC.marchable(u) ? ' · Formation: <b>' + (u.form === 'march' ? 'Marsch' : 'Phalanx') + '</b>' : ''}${u.routed ? ' · <span class="bad">auf der Flucht</span>' : ''}${u.acted && S.phase === 'fight' ? ' · bereits gehandelt' : ''}</div><div class="hint" style="margin-top:4px">${D.desc}</div>`;
     }
     function info() {
       const el = $('#tacInfo'); let h = `<h4>Einheit</h4>`;
@@ -628,19 +629,21 @@ function tacticalBattle(b, x) {
       if (u && !u.gone && u.men > 0) { h += unitCard(u);
         if (sel && hoverU && hoverU.side === 'G' && !sel.acted && S.phase === 'fight') { const tg = TAC.targetsFrom(S, sel, sel.col, sel.row, sel.moved).find(o => o.t === hoverU);
           if (tg) { const e = TAC.expected(S, sel, hoverU, tg.kind, sel.moved, [sel.col, sel.row]); h += `<p style="margin:6px 0 0"><b>${tg.kind === 'shoot' ? 'Beschuss' : 'Nahkampf'}:</b> erwartet −${Math.round(e.kills)} Gegner${e.ret ? ', −' + Math.round(e.ret) + ' eigene' : ''}</p>`; } else h += `<p class="hint" style="margin:6px 0 0">Klick auf den Gegner: Einheit rückt heran und greift an (falls erreichbar).</p>`; } }
-      else h += `<p class="hint">Fahre über eine Einheit oder wähle eine eigene aus. ${S.phase === 'fight' ? 'Klick auf ein blaues Feld bewegt, Klick auf einen Gegner greift an.' : ''}</p>`;
-      h += `<h4 style="margin-top:10px">Heere</h4><div class="hint">Römer: ${rest('R').length} Einheiten (${menCount('R')} Mann) · Gallier: ${rest('G').length} Einheiten (${menCount('G')} Mann)</div>`;
+      if (sel && TAC.marchable(sel) && S.phase === 'fight' && S.side === 'R' && !aiBusy && !sel.acted && sel.moved === 0) h += `<div class="row" style="margin-top:6px"><button id="tacForm">${sel.form === 'march' ? 'Phalanx aufbauen (kostet die Aktion)' : 'Marschformation (2× Bewegung)'}</button></div><div class="hint" style="margin-top:4px">Marsch: doppelte Bewegung, aber halber Angriff und halbe Verteidigung. Phalanx: normale Werte.</div>`;
+      else if (!u) h += `<p class="hint">Fahre über eine Einheit oder wähle eine eigene aus. ${S.phase === 'fight' ? 'Klick auf ein blaues Feld bewegt, Klick auf einen Gegner greift an.' : ''}</p>`;
+      h += `<h4 style="margin-top:10px">Heere</h4><div class="hint">Römer: ${rest('R').length} Einheiten (${menCount('R')} Mann) · Gallier: ${rest('G').length} Einheiten (${menCount('G')} Mann)</div><div class="hint">Eine Einheit steht für bis zu <b>${S.scale.R}</b> Mann.</div>`;
       const comp = {}; for (const q of S.units.filter(q => q.side === 'G')) comp[U[q.type].name] = (comp[U[q.type].name] || 0) + 1;
       h += `<div class="hint">Gegner: ${Object.entries(comp).map(([k, v]) => v + ' ' + k).join(', ')}</div>`;
       h += `<div class="hint" style="margin-top:6px">${Object.entries(TAC.TERR).filter(([k]) => k !== 'ford' || true).map(([k, v]) => `<span style="margin-right:8px;white-space:nowrap"><span class="sw" style="background:${v.color}"></span>${v.name}</span>`).join('')}</div>`;
       el.innerHTML = h;
+      const fb = $('#tacForm'); if (fb) fb.onclick = () => { if (TAC.setFormation(S, sel, sel.form === 'march' ? 'phalanx' : 'march')) { render(); } };
     }
     function tray() {
       const el = $('#tacTray'); if (S.phase !== 'deploy') { el.hidden = true; return; } el.hidden = false;
       const un = S.units.filter(q => q.side === 'R' && !q.placed), types = [...new Set(S.units.filter(q => q.side === 'R').map(q => q.type))];
       el.innerHTML = `<h4>Aufmarsch</h4><div class="hint" style="margin-bottom:6px">${S.units.filter(q => q.side === 'R' && q.placed).length} von ${S.startUnits.R} Einheiten stehen. Wähle einen Typ und klicke ein Feld in den unteren drei Reihen. Klick auf eine aufgestellte Einheit nimmt sie zurück.</div>
         <div class="tray">${types.map(k => { const n = un.filter(q => q.type === k).length; return `<button data-ty="${k}" class="${selType === k ? 'on' : ''}" ${n ? '' : 'disabled'}>${U[k].name} ×${n}</button>`; }).join('')}</div>
-        <div class="hint" style="margin-top:6px">Jede Einheit steht für 500 Mann. Legionäre tragen die Linie, Bogenschützen gehören dahinter, Reiter an die Flügel.</div>`;
+        <div class="hint" style="margin-top:6px">Jede Einheit steht für bis zu ${S.scale.R} Mann. Legionäre tragen die Linie, Bogenschützen gehören dahinter, Reiter an die Flügel. Wald schützt (besonders vor Pfeilen); Schützen auf Hügeln reichen 1 Feld weiter.</div>`;
       el.querySelectorAll('[data-ty]').forEach(bn => bn.onclick = () => { selType = bn.dataset.ty; tray(); });
     }
     function bar() {
@@ -675,7 +678,7 @@ function tacticalBattle(b, x) {
         if (!opt && sel.moved === 0) {                                    // heranruecken und angreifen
           const R = TAC.reach(S, sel); let best = null;
           for (const [k, cost] of R.best) { const hc = k % TAC.COLS, hr = Math.floor(k / TAC.COLS); if (TAC.unitAt(S, hc, hr) && !(hc === sel.col && hr === sel.row)) continue;
-            const d = TAC.dist(hc, hr, u.col, u.row), ok = d === 1 || (U[sel.type].shoot > 0 && d >= 2 && d <= U[sel.type].rng && cost <= 1);
+            const d = TAC.dist(hc, hr, u.col, u.row), ok = d === 1 || (U[sel.type].shoot > 0 && d >= 2 && d <= TAC.rangeOf(S, sel, hc, hr) && cost <= 1);
             if (ok) { const sc = -cost + TAC.ground(S, hc, hr).def * 2 + (d > 1 ? 1 : 0); if (!best || sc > best.sc) best = { sc, hc, hr }; } }
           if (best) { TAC.moveUnit(S, sel, best.hc, best.hr); opt = TAC.targetsFrom(S, sel, sel.col, sel.row, sel.moved).find(o => o.t === u); }
         }
@@ -905,7 +908,7 @@ function help() {
     <p><b>Taktik (aus den Regeln abgeleitet):</b> (1) Große Stämme (über ca. 70 000 Einwohner) zerschlagen jede einzelne Legion; Geld und Diplomatie sind der Weg, ein ganz früher Angriff ist ein Fehler. (2) Kleine Stämme mit Haltung ≤ 3 (Eburonen, Lexovier, Menapier, Osismer) sind ohne Aufruhr zu bezwingen; Kapitulation bringt ½ Bevölkerung in Denaren, Eroberung bis zu 2,3 × Bevölkerung (nimm höchstens die Hälfte und höchstens 10 % Geiseln, sonst Aufruhr). (3) Greife jedes Jahr einen feindlichen Stamm an (auch mit sofortigem Rückzug): das verhindert den allgemeinen Unmut im Winter. (4) Verbündete (Haltung über 10, Freundschaftsvertrag) sind vor der Jahresunruhe sicher und liefern Hilfstruppen. (5) Eine Legion allein bricht an Riesen. Mit „Gemeinsamer Angriff“ kämpfen mehrere Legionen als ein Verband mit der Summe ihrer Stärke; vier Legionen (18 000 Mann) zwingen sogar die Helvetier zur Kapitulation (≈100 000 Denare) bei etwa 3 700 Verlusten. Alternativ rücken Legionen nacheinander nach, die Verluste der Gallier bleiben im Jahr bestehen.</p>
     <p><b>Karte (erweiterte Regeln):</b> Die 30 Stämme liegen an ihrer historischen Stelle. Angreifen, Verhandeln und Marschieren geht nur bei Stämmen in Reichweite: Nachbarn der Provinz oder eines befriedeten Stammes. Kämpfende (feindliche) Stämme stecken ihre unbefriedeten Nachbarn mit Unruhe an – Unruheherde im Norden und Westen musst du dir Schritt für Schritt erarbeiten. Winterüberfälle kommen nur von feindlichen Stämmen in Reichweite.</p>
     <p><b>Diplomatie (erweiterte Regeln):</b> Friedensbedingungen wählen (mehr Tribut, Geiseln, Entschädigung oder mild). Sondierungsgespräche sind kostenlos, aber unsicher. Ein Ultimatum lässt Stämme bei großer Übermacht einknicken (Erfolg erspart den Kampf, Misserfolg bedeutet Krieg). Nach einem Friedensvertrag kann man zusätzliche Geiseln fordern.</p>
-    <p><b>Taktische Schlachten (erweiterte Regeln):</b> Im Angriffsdialog wählst du „Schlacht auf dem Feld“ oder „Schnell auflösen“. Auf dem Feld stellst du dein Heer im Aufmarschgebiet (untere drei Reihen) selbst auf, dann ziehen beide Seiten abwechselnd. Jede Einheit steht für 500 Mann; Römer: Legionäre (Pilum-Infanterie, 75–88 %), Bogenschützen (12 %), ab Tribun Reiter (10 %). Gallier kämpfen nach ihrer Volksgruppe mit Lanzenträgern, Schwertkämpfern, Schleudern/Bogen und Reitern, aber ohne feste Struktur (schwächere Moral und Kampfkraft, keine Formationsboni). Gelände: Wald und Hügel schützen, Sumpf und Furten hemmen, Wasser und Fels sperren; jedes Schlachtfeld ist an die Landschaft des Stammes angelehnt. Moral: Verluste, Flankenangriffe und fliehende Nachbarn senken sie; bei zu wenig Moral flieht die Einheit. Bricht ein Heer zusammen, ist die Schlacht entschieden. Ein Sieg führt zum Kapitulationsangebot, eine Niederlage kostet die Legion Männer.</p>
+    <p><b>Taktische Schlachten (erweiterte Regeln):</b> Im Angriffsdialog wählst du „Schlacht auf dem Feld“ oder „Schnell auflösen“. Auf dem Feld stellst du dein Heer im Aufmarschgebiet (untere drei Reihen) selbst auf, dann ziehen beide Seiten abwechselnd. Jede Einheit steht für bis zu 500 Mann (Heere über 15.000 Mann: 1.000, über 25.000: 2.000; beide Seiten haben dieselbe Einheitengröße); Römer: Legionäre (Pilum-Infanterie, 75–88 %), Bogenschützen (12 %), ab Tribun Reiter (10 %). Gallier kämpfen nach ihrer Volksgruppe mit Lanzenträgern, Schwertkämpfern, Schleudern/Bogen und Reitern, aber ohne feste Struktur (schwächere Moral und Kampfkraft, keine Formationsboni). Gelände: Wald und Hügel schützen, Sumpf und Furten hemmen, Wasser und Fels sperren; jedes Schlachtfeld ist an die Landschaft des Stammes angelehnt. Wald: ×1,3 Verteidigung (gegen Pfeile ×1,6) und weniger Schaden (−15 %, durch Pfeile −30 %); Schützen im Wald verlieren 1 Reichweite und 30 % Schaden, auf Hügeln gewinnen sie 1 Reichweite. Römische Infanterie hat zwei Formationen: Phalanx (normal) und Marsch (doppelte Bewegung, halber Angriff und halbe Verteidigung; Aufbau der Phalanx kostet die Aktion). Moral: Verluste, Flankenangriffe und fliehende Nachbarn senken sie; römische Einheiten mit Nachbarn verlieren weniger, wer von Fliehenden umgeben ist, gerät in Panik; Fliehende laufen durch die eigene Linie; bei zu wenig Moral flieht die Einheit. Bricht ein Heer zusammen, ist die Schlacht entschieden. Ein Sieg führt zum Kapitulationsangebot, eine Niederlage kostet die Legion Männer.</p>
     <p><b>Ränge und Ansehen (erweiterte Regeln):</b> Du beginnst als <b>Offizier</b>; deine Legionen dürfen höchstens 4.500 Mann stark sein. Mit Ansehen steigst du auf: Offizier → Zenturio (5.000) → Tribun (5.500, Kavallerie) → Legat (6.000) → General (6.500) → Prätor (7.000) → Konsul (7.500) → Prokonsul (8.000) → <b>Caesar (9.000)</b>. Ansehen bringen neue Provinzen (reiche mehr, Verhandlung/Ultimatum noch mehr), Bündnisse, gefestigte Verträge, gewonnene Wagenrennen und gerechte Urteile in der Arena. Es sinkt bei Niederlagen, Aufständen, zerbrochenen Bündnissen, Plünderung und verlorenen Rennen; der Rang geht nie verloren. Die Zufriedenheit Roms (0–100 %) hebt im Winter die Moral. Caesar wirst du nur mit hoher Zufriedenheit, mehreren Spielen und Bündnissen.</p>
     <p><b>Einsatzrhythmus und Finanzen (erweiterte Regeln):</b> Jede Legion kann pro Jahr nur einmal eingesetzt werden (Marsch, Angriff oder Ultimatum im Angriffsdialog); das Verhandlungs-Ultimatum bindet keine Legion. Die Provinz zahlt 8.000 Denare Steuern pro Jahr, der Sold ist auf 40 % des Originals gesenkt. Plane deine vier Armeen also wie vier Pfeile pro Jahr.</p>
     <p><b>Erweiterte Regeln (Fortsetzung):</b> Der Tribut hängt vom Reichtum des Stammes ab (Größe × Volksgruppe: Volcer 1,3 · Gallier 1,0 · Aquitaner 0,9 · Belger 0,8; Friedenstribut = 1000 × Reichtum, nach Eroberung die Hälfte). Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an, dienen 5 Jahre und kehren dann heim; beim Ausscheiden erhalten sie den doppelten Anwerbebetrag (6 Denare).</p>

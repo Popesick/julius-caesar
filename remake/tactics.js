@@ -9,7 +9,7 @@
   // mv: Bewegungskosten zu Fuss, cmv: fuer Reiter, def: Verteidigungsfaktor, high: erhoehte Position
   const TERR = {
     plain:    { name: 'Ebene',        mv: 1,  cmv: 1,  def: 1.0,  color: '#6e7b46' },
-    forest:   { name: 'Wald',         mv: 2,  cmv: 3,  def: 1.25, color: '#35532f', cavAtt: 0.7, shootDef: 1.2 },
+    forest:   { name: 'Wald',         mv: 2,  cmv: 3,  def: 1.3,  color: '#35532f', cavAtt: 0.7, shootDef: 1.6, cut: { melee: 0.85, shoot: 0.7 } },   // doppelter Schutz gegen Pfeile, weniger Schaden
     hill:     { name: 'Hügel',        mv: 2,  cmv: 2,  def: 1.3,  color: '#a08f5a', high: true },
     marsh:    { name: 'Sumpf',        mv: 3,  cmv: 4,  def: 0.9,  color: '#4f6c61' },
     ford:     { name: 'Furt',         mv: 2,  cmv: 2,  def: 0.85, color: '#82a6ba' },
@@ -104,9 +104,11 @@
   const siteName = tribeId => (SITES[tribeId] || ['plain', 'Schlachtfeld'])[1];
 
   // ---------------------------------------------------------------- Armeen
-  function splitUnits(total) {                                    // Einheiten zu je 500 Mann, letzte ggf. kleiner (Reserve bei > MAX_UNITS)
-    const out = []; let left = Math.min(total, MAX_UNITS * UNIT_MEN);
-    while (left > 0 && out.length < MAX_UNITS) { const m = Math.min(UNIT_MEN, left); if (m >= 60 || !out.length) out.push(m); left -= m; }      // Reste unter 60 Mann bilden keine Einheit
+  // Einheitengroesse je Heer: bis 15 000 Mann 500, ueber 15 000 Mann 1 000, ueber 25 000 Mann 2 000 (Rest als kleinere Einheit)
+  const unitScale = total => total > 25000 ? 2000 : total > 15000 ? 1000 : UNIT_MEN;
+  function splitUnits(total, scale) {
+    const sc = scale || unitScale(total), out = []; let left = Math.min(total, MAX_UNITS * sc);
+    while (left > 0 && out.length < MAX_UNITS) { const m = Math.min(sc, left); if (m >= 60 || !out.length) out.push(m); left -= m; }      // Reste unter 60 Mann bilden keine Einheit
     return out;
   }
   function allot(n, shares) {                                     // groesster Rest
@@ -116,8 +118,8 @@
     return out;
   }
   // Roemisches Heer: Legionaere (Pilum-Infanterie) mit Bogenschuetzen-Hilfstruppen, ab Tribun Kavallerie.
-  function romanComposition(totalMen, cavalry) {
-    const n = splitUnits(totalMen).length;
+  function romanComposition(totalMen, cavalry, scale) {
+    const n = splitUnits(totalMen, scale).length;
     return allot(n, { archer: 0.12, cav: cavalry ? 0.10 : 0, legion: 1 - 0.12 - (cavalry ? 0.10 : 0) });
   }
   // Gallische Heere nach Volksgruppe (0 Belger, 1 Gallier, 2 Aquitaner, 3 Volcer); einzelne Staemme mit Besonderheiten.
@@ -128,16 +130,17 @@
     { spear: 0.48, sword: 0.15, archer: 0.12, cav: 0.25 },       // Volcer: romanisierte Reiterei
   ];
   const GAUL_SPECIAL = { 26: { spear: 0.40, sword: 0.24, sling: 0.08, cav: 0.28 }, 9: { spear: 0.40, sword: 0.20, sling: 0.10, cav: 0.30 }, 2: { spear: 0.42, sword: 0.24, sling: 0.08, cav: 0.26 } };
-  function gaulComposition(totalMen, group, tribeId) { return allot(splitUnits(totalMen).length, GAUL_SPECIAL[tribeId] || GAUL_PROFILE[group] || GAUL_PROFILE[1]); }
+  function gaulComposition(totalMen, group, tribeId, scale) { return allot(splitUnits(totalMen, scale).length, GAUL_SPECIAL[tribeId] || GAUL_PROFILE[group] || GAUL_PROFILE[1]); }
 
   // ---------------------------------------------------------------- Zustand
   function newBattle(opts) {
     // opts: {tribeId, seed, romanMen, romanMorale (0-9 mv), cavalry, gaulMen, group, hostile}
     const R = rng((opts.seed || 1) * 31 + 7);
     const s = { cols: COLS, rows: ROWS, tribeId: opts.tribeId, siteName: siteName(opts.tribeId), terrain: genTerrain(opts.tribeId, opts.seed || 1), units: [], turn: 1, maxTurns: MAX_TURNS, phase: 'deploy', side: 'R', over: null, log: [], rnd: R, nextId: 1, startUnits: { R: 0, G: 0 }, panicG: false };
-    const rc = romanComposition(opts.romanMen, !!opts.cavalry), rm = splitUnits(opts.romanMen), gc = gaulComposition(opts.gaulMen, opts.group, opts.tribeId), gm = splitUnits(opts.gaulMen);
+    const sc = unitScale(Math.max(opts.romanMen, opts.gaulMen)); s.scale = { R: sc, G: sc };         // beide Seiten gleiche Einheitengroesse: bestimmt vom groesseren Heer
+    const rc = romanComposition(opts.romanMen, !!opts.cavalry, sc), rm = splitUnits(opts.romanMen, sc), gc = gaulComposition(opts.gaulMen, opts.group, opts.tribeId, sc), gm = splitUnits(opts.gaulMen, sc);
     const moraleR = Math.min(100, 52 + (opts.romanMorale == null ? 5 : opts.romanMorale) * 5), moraleG = opts.hostile ? K.hostileG : K.moraleG;
-    const mk = (side, type, men, morale) => ({ id: s.nextId++, side, type, men, max: UNIT_MEN, morale: Math.max(20, Math.min(100, morale + (side === 'G' ? Math.round((R() - 0.5) * 10) : 0))), col: -1, row: -1, acted: false, moved: 0, routed: false, gone: false, killed: 0, fledMen: 0, pilum: false, placed: false });
+    const mk = (side, type, men, morale) => ({ id: s.nextId++, side, type, men, max: s.scale[side], form: 'phalanx', morale: Math.max(20, Math.min(100, morale + (side === 'G' ? Math.round((R() - 0.5) * 10) : 0))), col: -1, row: -1, acted: false, moved: 0, routed: false, gone: false, killed: 0, fledMen: 0, pilum: false, placed: false });
     let k = 0;
     for (const t of ['legion', 'archer', 'cav']) for (let i = 0; i < (rc[t] || 0); i++) s.units.push(mk('R', t, rm[k++] || UNIT_MEN, moraleR));
     k = 0; for (const t of ['spear', 'sword', 'sling', 'archer', 'cav']) for (let i = 0; i < (gc[t] || 0); i++) s.units.push(mk('G', t, gm[k++] || UNIT_MEN, moraleG));
@@ -185,7 +188,7 @@
   const enemyAdj = (s, u, c, r) => nbrs(c, r).some(([a, b]) => { const o = unitAt(s, a, b); return o && o.side !== u.side && !o.routed; });
   // Erreichbare Felder (Dijkstra). ZOC: Betreten eines Feldes neben einem Feind beendet die Bewegung.
   function reach(s, u) {
-    const mp = UT[u.type].mv, best = new Map(), prev = new Map(), open = [[0, u.col, u.row]]; best.set(key(u.col, u.row), 0);
+    const mp = UT[u.type].mv * (u.form === 'march' ? 2 : 1), best = new Map(), prev = new Map(), open = [[0, u.col, u.row]]; best.set(key(u.col, u.row), 0);   // Marschformation: doppelte Bewegung
     while (open.length) {
       open.sort((a, b) => a[0] - b[0]); const [cost, c, r] = open.shift(); if (cost > best.get(key(c, r))) continue;
       if (!(c === u.col && r === u.row) && enemyAdj(s, u, c, r)) continue;                       // Feindberuehrung: stoppt
@@ -204,9 +207,10 @@
   function adjacentEnemies(s, u, c, r) { return nbrs(c, r).filter(([a, b]) => { const o = unitAt(s, a, b); return o && o.side !== u.side && !o.routed; }).length; }
   // Angriffsstaerke und Verteidigung; kind: 'melee' | 'shoot'. from: [c,r], moved: gelaufene Kosten
   function power(s, u, t, kind, moved, from, st) {
-    const U = UT[u.type]; let p = (kind === 'shoot' ? U.shoot : U.att) * Math.pow(u.men / UNIT_MEN, 0.85);
+    const U = UT[u.type]; let p = (kind === 'shoot' ? U.shoot : U.att) * Math.pow(u.men / u.max, 0.85) * (u.max / UNIT_MEN);   // groessenunabhaengig: zaehlt die Mannzahl
     if (u.side === 'G') p *= K.gaulAtt;                                                   // fehlende Struktur
     p *= 0.7 + 0.3 * (u.morale / 100);
+    if (u.form === 'march') p *= 0.5;                                              // Marschformation: halber Angriff
     const th = ground(s, t.col, t.row), fh = ground(s, from[0], from[1]);
     if (kind === 'melee') {
       if (U.cav && moved >= 3) p *= 1.3 * (th.cavAtt || 1);
@@ -216,13 +220,14 @@
       const flankers = adjacentEnemies(s, t, t.col, t.row) - 1;                      // andere Gegner um das Ziel (Flankenbonus)
       p *= 1 + 0.18 * Math.max(0, Math.min(2, flankers + (st && st.adjTarget ? 0 : 0)));
       if (fh.high && !th.high) p *= 1.1;
-    } else { if (fh.high) p *= 1.15; if (th.shootDef) p /= 1; }
+    } else { if (fh.high) p *= 1.15; if (fh.shootDef) p *= 0.7; }               // Schuetzen im Wald: Baeume fangen Pfeile
     return p;
   }
   function defense(s, t, u, kind) {
-    const U = UT[t.type], th = ground(s, t.col, t.row); let d = U.def * Math.pow(t.men / UNIT_MEN, 0.5);
+    const U = UT[t.type], th = ground(s, t.col, t.row); let d = U.def * Math.pow(t.men / t.max, 0.5) * (t.max / UNIT_MEN);
     if (t.side === 'G') d *= K.gaulDef;
-    d *= th.def * (kind === 'shoot' && th.shootDef ? th.shootDef : 1);
+    d *= (kind === 'shoot' && th.shootDef) ? th.shootDef : th.def;
+    if (t.form === 'march') d *= 0.5;                                              // Marschformation: halbe Verteidigung
     if (t.side === 'R') d *= 1 + 0.06 * Math.min(3, adjacentFriends(s, t, t.col, t.row));        // Verbund der Kohorten
     if (U.antiCav && UT[u.type].cav) d *= 1.6;
     d *= 0.8 + 0.2 * (t.morale / 100);
@@ -231,37 +236,50 @@
   }
   function expected(s, u, t, kind, moved, from) {
     const P = power(s, u, t, kind, moved, from), D = defense(s, t, u, kind), ratio = P / (P + D);
-    const k = u.men * (kind === 'shoot' ? K.shoot : K.melee) * 2 * ratio * (t.routed ? 1.5 : 1);
+    const k = u.men * (kind === 'shoot' ? K.shoot : K.melee) * 2 * ratio * (t.routed ? 1.5 : 1) * cut(s, t, kind);
     let ret = 0;
-    if (kind === 'melee' && !t.routed && UT[t.type].att > 0) { const P2 = power(s, t, u, 'melee', 0, [t.col, t.row]) * K.ret, D2 = defense(s, u, t, 'melee'); ret = t.men * K.melee * 2 * (P2 / (P2 + D2)); }
+    if (kind === 'melee' && !t.routed && UT[t.type].att > 0) { const P2 = power(s, t, u, 'melee', 0, [t.col, t.row]) * K.ret, D2 = defense(s, u, t, 'melee'); ret = t.men * K.melee * 2 * (P2 / (P2 + D2)) * cut(s, u, 'melee'); }
     return { kills: Math.min(t.men, k), ret: Math.min(u.men, ret) };
   }
+  // Fernkampfreichweite: Huegel +1, Wald -1 (Baeume fangen Pfeile ab); Schuetzen im Wald mit Reichweite 1 koennen nicht schiessen
+  function rangeOf(s, u, c, r) { const U = UT[u.type]; if (!(U.shoot > 0)) return 1; const tt = s.terrain[r][c]; return U.rng + (tt === 'hill' ? 1 : 0) - (tt === 'forest' ? 1 : 0); }
+  const marchable = u => u.side === 'R' && (u.type === 'legion' || u.type === 'archer');
+  function setFormation(s, u, form) {                                               // Phalanx <-> Marsch (nur roemische Infanterie)
+    if (!marchable(u) || u.gone || u.routed || u.form === form) return false;
+    if (s.phase === 'deploy') { u.form = form; return true; }
+    if (u.acted || u.moved > 0) return false;
+    u.form = form; if (form === 'phalanx') u.acted = true;                         // Aufbau der Phalanx kostet die Aktion
+    note(s, `${UT[u.type].name}: ${form === 'march' ? 'Marschformation' : 'Phalanx'}`); return true;
+  }
+  const cut = (s, t, kind) => { const T = ground(s, t.col, t.row); return (T.cut && T.cut[kind]) || 1; };
   function targetsFrom(s, u, c, r, moved) {
     const U = UT[u.type], out = [];
     for (const t of s.units) {
       if (t.gone || t.men <= 0 || t.side === u.side) continue;
       const d = dist(c, r, t.col, t.row);
       if (d === 1) out.push({ t, kind: 'melee' });
-      else if (U.shoot > 0 && d >= 2 && d <= U.rng && moved <= 1) out.push({ t, kind: 'shoot' });
+      else if (U.shoot > 0 && d >= 2 && d <= rangeOf(s, u, c, r) && moved <= 1) out.push({ t, kind: 'shoot' });
     }
     return out;
   }
   function note(s, text) { s.log.push({ turn: s.turn, side: s.side, text }); if (s.log.length > 200) s.log.shift(); }
+  // Roemische Einheiten mit Nachbarn halten zusammen: je Nachbar -12 % Moralverlust (max. 3)
+  const cohesion = (s, t) => t.side === 'R' ? 1 - 0.12 * Math.min(3, adjacentFriends(s, t, t.col, t.row)) : 1;
   function applyDamage(s, t, kills, moraleScale, flanked) {
     const frac = kills / Math.max(1, t.men); t.men = Math.max(0, t.men - kills); t.killed += kills;
-    t.morale -= frac * K.moraleLoss * moraleScale + (flanked ? 4 : 0) + (t.men > 0 && t.men < t.max * 0.4 ? 3 : 0);
+    t.morale -= frac * K.moraleLoss * moraleScale * cohesion(s, t) + (flanked ? 4 : 0) + (t.men > 0 && t.men < t.max * 0.4 ? 3 : 0);
   }
   function attack(s, u, t, kind) {
     const from = [u.col, u.row], moved = u.moved, U = UT[u.type];
     const P = power(s, u, t, kind, moved, from), D = defense(s, t, u, kind), ratio = P / (P + D);
     const flanked = kind === 'melee' && adjacentEnemies(s, t, t.col, t.row) >= 2;
-    let kills = Math.max(1, Math.round(u.men * (kind === 'shoot' ? K.shoot : K.melee) * 2 * ratio * (0.75 + 0.5 * s.rnd()) * (t.routed ? 1.5 : 1)));
+    let kills = Math.max(1, Math.round(u.men * (kind === 'shoot' ? K.shoot : K.melee) * 2 * ratio * (0.75 + 0.5 * s.rnd()) * (t.routed ? 1.5 : 1) * cut(s, t, kind)));
     kills = Math.min(kills, t.men); if (u.type === 'legion' && moved >= 1) u.pilum = true;
     const tmen = t.men; applyDamage(s, t, kills, 1, flanked);
     let ret = 0;
     if (kind === 'melee' && t.men > 0 && !t.routed && UT[t.type].att > 0) {
       const P2 = power(s, t, u, 'melee', 0, [t.col, t.row]) * K.ret, D2 = defense(s, u, t, 'melee');
-      ret = Math.min(u.men, Math.max(0, Math.round(t.men * K.melee * 2 * (P2 / (P2 + D2)) * (0.75 + 0.5 * s.rnd())))); applyDamage(s, u, ret, 0.8, false);
+      ret = Math.min(u.men, Math.max(0, Math.round(t.men * K.melee * 2 * (P2 / (P2 + D2)) * (0.75 + 0.5 * s.rnd()) * cut(s, u, 'melee')))); applyDamage(s, u, ret, 0.8, false);
     }
     if (kills > tmen * 0.12) u.morale = Math.min(100, u.morale + 3);
     u.acted = true;
@@ -274,13 +292,13 @@
   function checkBreak(s, u) {
     if (u.gone) return;
     if (u.men <= 0) { u.gone = true; shock(s, u, 6); return; }
-    if (!u.routed && (u.morale <= routLimit(u) || u.men < 40)) { u.routed = true; note(s, `${UT[u.type].name} fliehen vom Schlachtfeld`); shock(s, u, 8); }
+    if (!u.routed && (u.morale <= routLimit(u) || u.men < u.max * 0.08)) { u.routed = true; note(s, `${UT[u.type].name} fliehen vom Schlachtfeld`); shock(s, u, 8); }
   }
   function shock(s, u, base) {                                                       // Nachbarn sehen den Zusammenbruch
     for (const o of s.units) { if (o.gone || o === u || o.men <= 0) continue; const d = dist(u.col, u.row, o.col, o.row);
-      if (d > 2) continue; if (o.side === u.side) { o.morale -= (K.shock + (o.side === 'G' ? K.shockG : 0)) * (d === 1 ? 1 : 0.5); checkBreakSoft(s, o); } else o.morale = Math.min(100, o.morale + 2); }
+      if (d > 2) continue; if (o.side === u.side) { o.morale -= (K.shock + (o.side === 'G' ? K.shockG : 0)) * (d === 1 ? 1 : 0.5) * cohesion(s, o); checkBreakSoft(s, o); } else o.morale = Math.min(100, o.morale + 2); }
   }
-  function checkBreakSoft(s, o) { if (!o.routed && !o.gone && (o.morale <= routLimit(o) || o.men < 40)) { o.routed = true; note(s, `${UT[o.type].name} fliehen vom Schlachtfeld`); } }
+  function checkBreakSoft(s, o) { if (!o.routed && !o.gone && (o.morale <= routLimit(o) || o.men < o.max * 0.08)) { o.routed = true; note(s, `${UT[o.type].name} fliehen vom Schlachtfeld`); } }
   function moveUnit(s, u, c, r) {
     const R = reach(s, u), cost = R.best.get(key(c, r)); if (cost === undefined || u.acted || u.moved > 0 && cost > 0 && false) return false;
     u.col = c; u.row = r; u.moved = cost; return true;
@@ -290,26 +308,33 @@
   function rallyAndFlee(s, side) {
     for (const u of s.units.filter(x => x.side === side && x.routed && !x.gone && x.men > 0)) {
       const near = s.units.some(o => !o.gone && o.men > 0 && o.side !== side && !o.routed && dist(u.col, u.row, o.col, o.row) <= 3);
-      if (!near) { u.morale = Math.min(100, u.morale + (side === 'R' ? 9 : 3)); if (u.morale >= routLimit(u) + 18 && u.men >= 60) { u.routed = false; note(s, `${UT[u.type].name} sammeln sich wieder`); continue; } }
+      if (!near) { u.morale = Math.min(100, u.morale + (side === 'R' ? 9 : 3)); if (u.morale >= routLimit(u) + 18 && u.men >= u.max * 0.12) { u.routed = false; note(s, `${UT[u.type].name} sammeln sich wieder`); continue; } }
       const edgeRow = side === 'R' ? ROWS - 1 : 0;
       if (u.row === edgeRow) { u.gone = true; u.fledMen = u.men; note(s, `${UT[u.type].name} entkommen vom Schlachtfeld`); continue; }
       // Flucht: zum eigenen Rand, weg vom Feind
       const R = reach2(s, u); let bestHex = null, bestScore = -1e9;
-      for (const [k, cost] of R) { const c = k % COLS, r = Math.floor(k / COLS); let d = 99; for (const o of s.units) if (!o.gone && o.men > 0 && o.side !== side && !o.routed) d = Math.min(d, dist(c, r, o.col, o.row));
+      for (const [k, cost] of R) { const c = k % COLS, r = Math.floor(k / COLS); const occ = unitAt(s, c, r); if (occ && occ !== u) continue; let d = 99; for (const o of s.units) if (!o.gone && o.men > 0 && o.side !== side && !o.routed) d = Math.min(d, dist(c, r, o.col, o.row));
         const sc = d * 2 + (side === 'R' ? r : ROWS - 1 - r) * 3 - cost * 0.3; if (sc > bestScore) { bestScore = sc; bestHex = [c, r]; } }
       if (bestHex) { u.col = bestHex[0]; u.row = bestHex[1]; if (u.row === edgeRow) { u.gone = true; u.fledMen = u.men; note(s, `${UT[u.type].name} entkommen vom Schlachtfeld`); } }
     }
   }
-  function reach2(s, u) {                                                            // Fluchtbewegung ohne Feindberuehrung
+  function reach2(s, u) {                                                            // Fluchtbewegung: die eigene Linie darf durchquert werden, Feinde sperren
     const mp = UT[u.type].mv, best = new Map([[key(u.col, u.row), 0]]), open = [[0, u.col, u.row]];
     while (open.length) { open.sort((a, b) => a[0] - b[0]); const [cost, c, r] = open.shift();
-      for (const [a, b] of nbrs(c, r)) { if (ground(s, a, b).impass || unitAt(s, a, b)) continue; const nc = cost + moveCost(s, u, a, b); if (nc > mp) continue; if (nc < (best.get(key(a, b)) ?? 99)) { best.set(key(a, b), nc); open.push([nc, a, b]); } } }
+      for (const [a, b] of nbrs(c, r)) { if (ground(s, a, b).impass) continue; const o = unitAt(s, a, b); if (o && o.side !== u.side) continue; const nc = cost + moveCost(s, u, a, b); if (nc > mp) continue; if (nc < (best.get(key(a, b)) ?? 99)) { best.set(key(a, b), nc); open.push([nc, a, b]); } } }
     return best;
+  }
+  // Wer von fliehenden Kameraden umgeben ist, verliert den Mut: mind. 2 fliehende Nachbarn, oder alle Nachbarn fliehen
+  function panicCheck(s, side) {
+    for (const u of fighting(s, side)) {
+      let nr = 0, fr = 0; for (const [a, b] of nbrs(u.col, u.row)) { const o = unitAt(s, a, b); if (o && o.side === side) { if (o.routed) nr++; else fr++; } }
+      if (nr >= 2 || (nr >= 1 && fr === 0)) { u.morale -= (side === 'R' ? 7 : 11) * nr; note(s, `${UT[u.type].name} geraten in Panik`); checkBreakSoft(s, u); }
+    }
   }
   function endSide(s) {                                                              // Seite beendet ihren Zug
     if (s.over) return;
-    if (s.side === 'R') { s.side = 'G'; resetSide(s, 'G'); rallyAndFlee(s, 'G'); }
-    else { s.turn++; s.side = 'R'; resetSide(s, 'R'); rallyAndFlee(s, 'R'); if (s.turn > s.maxTurns) { s.over = decide(s, 'turns'); } }
+    if (s.side === 'R') { s.side = 'G'; resetSide(s, 'G'); rallyAndFlee(s, 'G'); panicCheck(s, 'G'); }
+    else { s.turn++; s.side = 'R'; resetSide(s, 'R'); rallyAndFlee(s, 'R'); panicCheck(s, 'R'); if (s.turn > s.maxTurns) { s.over = decide(s, 'turns'); } }
     checkEnd(s);
   }
   const strength = (s, side) => s.units.filter(u => u.side === side && !u.gone && u.men > 0).reduce((a, u) => a + u.men * (u.routed ? 0.2 : 1), 0);
@@ -390,7 +415,7 @@
     return result(s);
   }
 
-  const API = { K, COLS, ROWS, UNIT_MEN, MAX_UNITS, MAX_TURNS, TERR, UT, FAR, SITES, rng, nbrs, dist, key, inB, genTerrain, siteName, splitUnits, romanComposition, gaulComposition, newBattle,
+  const API = { K, unitScale, rangeOf, marchable, setFormation, cut, panicCheck, cohesion, rallyAndFlee, COLS, ROWS, UNIT_MEN, MAX_UNITS, MAX_TURNS, TERR, UT, FAR, SITES, rng, nbrs, dist, key, inB, genTerrain, siteName, splitUnits, romanComposition, gaulComposition, newBattle,
     alive, fighting, unitAt, ground, zone, enemyOf, place, pickUp, freeZoneHexes, autoDeploy, allPlaced, startFight, reach, pathTo, targetsFrom, expected, attack, moveUnit,
     resetSide, endSide, checkEnd, retreatAll, result, aiPlay, aiNext, autoPlay, power, defense, strength, routLimit, enemyAdj, adjacentFriends, adjacentEnemies };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.TAC = API;

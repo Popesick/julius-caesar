@@ -208,6 +208,61 @@ g = JC.createGame(1, seeded(20), { tactics: true }); tbt = JC.beginBattle(g, [1]
 g = JC.createGame(1, seeded(20), { tactics: true, rank: true }); tbt = JC.beginBattle(g, [1, 2], 10); const to = JC.tacticalOpts(g, tbt); assert.equal(to.romanMen, 9000); assert.equal(to.cavalry, false); assert.equal(to.hostile, true); assert.equal(to.group, 1);
 g.rankIdx = 2; assert.equal(JC.tacticalOpts(g, tbt).cavalry, true);                                                                              // Kavallerie ab Tribun
 
+// --- Taktik: Einheitengroessen, Wald, Reichweiten, Formationen, Moral, Flucht
+assert.equal(TAC.unitScale(15000), 500); assert.equal(TAC.unitScale(15001), 1000); assert.equal(TAC.unitScale(25000), 1000); assert.equal(TAC.unitScale(25001), 2000);
+assert.deepEqual(TAC.splitUnits(15579), [...Array(15).fill(1000), 579]); assert.equal(TAC.splitUnits(26000).length, 13); assert.equal(TAC.splitUnits(26000)[0], 2000);
+assert.equal(TAC.splitUnits(200000).length, 40);                                                                            // Reserve bei riesigen Heeren
+const cb = TAC.newBattle({ tribeId: 19, seed: 2, romanMen: 4500, romanMorale: 5, gaulMen: 20000, group: 1 });                // gemeinsame Einheitengroesse (vom groesseren Heer)
+assert.equal(cb.scale.R, 1000); assert.equal(cb.scale.G, 1000); assert.equal(cb.units.filter(u => u.side === 'R').length, 5); assert.equal(cb.units.filter(u => u.side === 'G').length, 20);
+assert(cb.units.every(u => u.max === 1000 && u.men <= 1000));
+const mini = () => { const s = TAC.newBattle({ tribeId: 19, seed: 1, romanMen: 500, romanMorale: 5, gaulMen: 500, group: 1 }); s.units = []; s.terrain = s.terrain.map(r => r.map(() => 'plain')); s.phase = 'fight'; s.side = 'R'; return s; };
+const add = (s, side, type, c, r, men = 500) => { const u = { id: s.nextId++, side, type, men, max: 500, morale: 80, col: c, row: r, acted: false, moved: 0, routed: false, gone: false, killed: 0, fledMen: 0, pilum: false, placed: true, form: 'phalanx' }; s.units.push(u); return u; };
+{ // Wald: bessere Verteidigung (gegen Pfeile doppelt), weniger Schaden
+  const s = mini(); const a = add(s, 'R', 'archer', 5, 8), t = add(s, 'G', 'spear', 5, 6); const shootPlain = TAC.expected(s, a, t, 'shoot', 0, [5, 8]).kills, meleeA = add(s, 'R', 'legion', 6, 7); 
+  const meleePlain = TAC.expected(s, meleeA, t, 'melee', 1, [6, 7]).kills; s.terrain[6][5] = 'forest';
+  const shootForest = TAC.expected(s, a, t, 'shoot', 0, [5, 8]).kills, meleeForest = TAC.expected(s, meleeA, t, 'melee', 1, [6, 7]).kills;
+  assert(shootForest < shootPlain * 0.62, 'Pfeile im Wald ' + shootForest + ' vs ' + shootPlain); assert(meleeForest < meleePlain * 0.9 && meleeForest > shootForest * 0, 'Nahkampf im Wald');
+  assert((shootPlain - shootForest) / shootPlain > (meleePlain - meleeForest) / meleePlain, 'Wald schuetzt staerker gegen Pfeile als gegen Nahkampf');
+  assert(TAC.defense(s, t, a, 'shoot') / TAC.defense(s, t, a, 'melee') > 1.15); assert.equal(TAC.cut(s, t, 'shoot'), 0.7); assert.equal(TAC.cut(s, t, 'melee'), 0.85);
+}
+{ // Schuetzen: Wald -1 Reichweite und weniger Schaden, Huegel +1
+  const s = mini(); const a = add(s, 'R', 'archer', 5, 8), sl = add(s, 'G', 'sling', 9, 2);
+  assert.equal(TAC.rangeOf(s, a, 5, 8), 3); s.terrain[8][5] = 'forest'; assert.equal(TAC.rangeOf(s, a, 5, 8), 2); assert.equal(TAC.rangeOf(s, sl, 9, 2), 2);
+  s.terrain[2][9] = 'forest'; assert.equal(TAC.rangeOf(s, sl, 9, 2), 1); s.terrain[8][5] = 'plain'; s.terrain[2][9] = 'hill'; assert.equal(TAC.rangeOf(s, sl, 9, 2), 3);
+  s.terrain[8][5] = 'hill'; assert.equal(TAC.rangeOf(s, a, 5, 8), 4);
+  const t = add(s, 'G', 'spear', 5, 4); assert(TAC.dist(5, 8, 5, 4) === 4 && TAC.targetsFrom(s, a, 5, 8, 0).some(o => o.t === t && o.kind === 'shoot'));        // Reichweite 4 vom Huegel
+  s.terrain[8][5] = 'plain'; assert(!TAC.targetsFrom(s, a, 5, 8, 0).some(o => o.t === t));                                                                // Ebene: nur 3
+  s.terrain[8][5] = 'plain'; const pPlain = TAC.power(s, a, t, 'shoot', 0, [5, 8]); s.terrain[8][5] = 'forest'; assert(TAC.power(s, a, t, 'shoot', 0, [5, 8]) < pPlain * 0.75);   // Baeume fangen Pfeile ab
+  s.terrain[8][5] = 'plain'; s.terrain[2][9] = 'forest'; assert(!TAC.targetsFrom(s, sl, 9, 2, 0).length || TAC.targetsFrom(s, sl, 9, 2, 0).every(o => o.kind === 'melee'));   // Schleuderer im Wald koennen nicht schiessen
+}
+{ // Formationen: Marsch = doppelte Bewegung, halbe Verteidigung und Angriff
+  const s = mini(); const l = add(s, 'R', 'legion', 8, 9), e = add(s, 'G', 'spear', 8, 3); const mpP = TAC.reach(s, l).best.size;
+  assert(TAC.setFormation(s, l, 'march')); assert.equal(l.form, 'march'); assert.equal(l.acted, false); assert(TAC.reach(s, l).best.size > mpP * 2);
+  const dM = TAC.defense(s, l, e, 'melee'); l.form = 'phalanx'; assert(Math.abs(dM * 2 - TAC.defense(s, l, e, 'melee')) < 1e-9);
+  const pP = TAC.power(s, l, e, 'melee', 0, [8, 9]); l.form = 'march'; assert(Math.abs(TAC.power(s, l, e, 'melee', 0, [8, 9]) * 2 - pP) < 1e-9);
+  assert(TAC.setFormation(s, l, 'phalanx')); assert.equal(l.acted, true);                                                           // Aufbau der Phalanx kostet die Aktion
+  const e2 = add(s, 'G', 'sword', 3, 3); assert(!TAC.setFormation(s, e2, 'march'));                                             // nur roemische Infanterie
+  const c = add(s, 'R', 'cav', 1, 9); assert(!TAC.setFormation(s, c, 'march'));
+  const l2 = add(s, 'R', 'legion', 10, 9); l2.moved = 1; assert(!TAC.setFormation(s, l2, 'march'));                                  // nach der Bewegung nicht mehr
+}
+{ // Moral: Roemer mit Nachbarn, Panik durch fliehende Nachbarn
+  const s = mini(); const a = add(s, 'R', 'legion', 6, 8), iso = add(s, 'R', 'legion', 12, 9); assert.equal(TAC.cohesion(s, iso), 1);
+  for (const [c, r] of TAC.nbrs(6, 8).slice(0, 3)) add(s, 'R', 'legion', c, r); assert(Math.abs(TAC.cohesion(s, a) - 0.64) < 1e-9);
+  const g1 = add(s, 'G', 'spear', 4, 3); for (const [c, r] of TAC.nbrs(4, 3).slice(0, 3)) add(s, 'G', 'spear', c, r); assert.equal(TAC.cohesion(s, g1), 1);                 // Gallier: nie
+  const p = add(s, 'R', 'legion', 3, 6), n1 = add(s, 'R', 'legion', ...TAC.nbrs(3, 6)[0]), n2 = add(s, 'R', 'legion', ...TAC.nbrs(3, 6)[2]); n1.routed = n2.routed = true;
+  const m0 = p.morale; TAC.panicCheck(s, 'R'); assert(p.morale < m0 - 10, 'Panik'); assert(!n1.gone);
+}
+{ // Fliehende Einheiten kommen durch die eigene Linie
+  const s = mini(); const f = add(s, 'R', 'legion', 5, 8); f.routed = true; f.morale = 5; f.men = 300;
+  for (let c = 3; c <= 8; c++) add(s, 'R', 'legion', c, 9);                                                                      // geschlossene Linie dahinter
+  add(s, 'G', 'spear', 5, 1);
+  TAC.rallyAndFlee(s, 'R'); assert(f.row >= 10 || f.gone, 'Fliehender steckt fest: ' + f.col + ',' + f.row);
+  assert(new Set(s.units.filter(u => !u.gone).map(u => u.col + ',' + u.row)).size === s.units.filter(u => !u.gone).length);   // keine Doppelbelegung
+}
+// Gesamtlauf mit allen Regeln: grosse Heere, Invarianten
+for (const [r, g] of [[18000, 20000], [36000, 30000], [15579, 15000], [4500, 4500]]) for (let i = 1; i <= 8; i++) { const bs = TAC.newBattle({ tribeId: 1 + i * 3, seed: i, romanMen: r, romanMorale: 5, gaulMen: g, group: i % 4, cavalry: i % 2 === 0 });
+  const res = TAC.autoPlay(bs); assert(bs.over && res.rKilled <= r && res.gKilled <= g); assert(bs.units.every(u => u.men >= 0 && u.men <= u.max)); }
+
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {
   const g = JC.createGame(sp, seeded(seed)); let years = 0;

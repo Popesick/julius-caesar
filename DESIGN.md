@@ -481,7 +481,16 @@ Straßen, Legionsmarsch mit Zeitkosten, Ton, Mehrspieler im Spielrunde-Stil.
 | Gelände je Schlachtfeld | 30 Schlachtfeld-Vorlagen nach der Landschaft des Stammes (z. B. Bibracte-Hang für Haeduer/Helvetier, Gergovia-Plateau, Oppidum mit Palisade, Loire-/Marne-/Aisne-Ufer mit Furten, Waldsümpfe der Bellovaker, Küsten, Heckenland, Kiefernwälder der Landes, Alpentäler). Der Zufallskeim hängt von Stamm und Schlachtenzahl ab; Aufmarschzonen sind immer begehbar, die Gebiete bleiben verbunden. Wald, Hügel und Palisaden schützen, Sumpf und Furt hemmen, Wasser und Fels sperren. |
 | Ergebnis → Kampagne | Gefallene und Flüchtige werden in Mann umgerechnet (Römer: Flüchtige zu 40 % verloren, Gallier zu 70 % zerstreut) und wie bisher verbucht. Sieg: Kapitulationsangebot (oder Eroberung bei unter 201 Kriegern); Niederlage: Flucht oder Aufreibung; Remis oder Rückzug: Rückzug. |
 
-Kalibrierung (KI gegen KI, je 60 Schlachten, 4 500 Römer): gegen 4 500 Gallier gewinnen die Römer immer, gegen 6 000 etwa zwei Drittel, gegen 11 000 verlieren sie meist. Bei 9 000 : 15 000 siegen die Gallier meist. Schlachten dauern im Mittel 7–13 Züge.
+**Regeln der Hexschlacht im Detail:**
+
+* **Einheitengröße:** bis 15 000 Mann je Heer 500 Mann pro Einheit, darüber 1 000, über 25 000 Mann 2 000; ein Rest bildet eine kleinere Einheit (15 579 Mann = 15 × 1 000 + 1 × 579). Beide Seiten nutzen dieselbe Größe, bestimmt vom größeren Heer; so bleibt die Karte übersichtlich und die Kampfwerte skalieren mit der Mannzahl. Aufgebot höchstens 40 Einheiten je Seite.
+* **Wald:** Verteidigung ×1,3 (gegen Fernkampf ×1,6, also doppelter Zuschlag), erlittener Schaden −15 % (durch Pfeile −30 %). Schützen im Wald: Reichweite −1 und −30 % Schaden (Schleuderer mit Reichweite 2 können dort nicht mehr schießen).
+* **Hügel:** Schützen +1 Reichweite (Bogenschützen 4, Schleuderer 3) und +15 % Schaden, Nahkämpfer auf der Höhe +10 %.
+* **Moral:** Römische Einheiten verlieren pro benachbarter Einheit 12 % weniger Moral (höchstens 3 Nachbarn); Gallier haben diesen Verbund nicht. Wer zu Beginn seiner Seite von mindestens 2 fliehenden Nachbarn umgeben ist (oder nur fliehende Nachbarn hat), verliert Moral (Römer 7, Gallier 11 je Fliehendem) und kann selbst fliehen.
+* **Flucht:** Fliehende Einheiten dürfen die eigene Linie durchqueren (sie bleiben nicht mehr hinter haltenden Einheiten stecken), enden aber nie auf einem besetzten Feld; Feinde sperren den Weg.
+* **Formationen (römische Infanterie, Legionäre und Bogenschützen):** *Phalanx* = normale Bewegung, Angriff und Verteidigung. *Marsch* = doppelte Bewegungspunkte, halber Angriff und halbe Verteidigung. In den Marsch zu wechseln ist kostenlos, solange die Einheit noch nicht gehandelt oder sich bewegt hat; der Aufbau der Phalanx kostet die Aktion. Reiter und Gallier kennen keine Formationen.
+
+Kalibrierung (KI gegen KI, je 60 Schlachten): bei gleicher Stärke gewinnen die Römer immer (4 500, 9 000, 18 000 und 36 000 Mann), bei 1,33 : 1 etwa 85 %, bei 1,67 : 1 verlieren sie fast immer. Das Verhältnis ist über alle Einheitengrößen gleich. Schlachten dauern im Mittel 7–13 Züge.
 
 Im Originalmodus (Haken abgewählt) gelten die Regeln aus Abschnitt 7 unverändert. Im Spiel wählt der Startbildschirm Schwierigkeitsgrad (Spielstärke 1–5) und Modus (Original oder Enhanced mit einzeln abwählbaren Regeln).
 
