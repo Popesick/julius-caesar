@@ -66,6 +66,23 @@ assert.equal(g.legions[1].le + g.legions[2].le + g.legions[3].le + g.legions[4].
 assert.equal(JC.assess(JC.createGame(1, seeded(3)), [1, 2, 3, 4], 10, 40).capitulation, 100);      // 4 Legionen zwingen die Helvetier
 g.rv = 1000; JC.payLegions(g, [1, 2], 1000); assert.equal(g.rv, 0);
 
+// --- Reichtum und Geisel-Freiwillige (nicht im Original)
+g = JC.createGame(1, seeded(1), { wealth: true, slaves: true });
+assert.equal(JC.tributeBase(g, g.tribes[10]), 2100); assert.equal(JC.tributeBase(g, g.tribes[8]), 300);
+assert.equal(JC.tributeBase(JC.createGame(1, seeded(1)), g.tribes[10]), 1000);                  // klassisch: immer 1000
+assert.equal(g.tribes.slice(1).reduce((a, t) => a + JC.tributeBase(g, t), 0), 27800);
+g.tribes[10].gr = 1000; g.year = 3; let lv = JC.levyVolunteers(g);
+assert.equal(lv.total, 50); assert.equal(g.tribes[10].gr, 950);                                  // 5 % der Geiseln
+assert.equal(g.legions.slice(1).reduce((a, l) => a + l.le, 0), 18050);
+g.year = 7; assert.equal(JC.budget(g).discharged, 0);                                            // erst nach 5 Jahren
+g.year = 8; let bd = JC.budget(g); assert.equal(bd.discharged, 50); assert.equal(bd.discharge, 50 * 6);   // doppelter Betrag (6 statt 3)
+const rv0 = g.rv; JC.closeBudget(g); assert.equal(g.legions.slice(1).reduce((a, l) => a + l.le, 0), 18000);
+assert.equal(g.tribes[10].be, g.tribes[10].pop0 + 50); assert.equal(g.cohorts.length, 0); assert.equal(g.rv, rv0 + bd.income - bd.cost - 300);
+// Verluste im Kampf treffen die Freiwilligen anteilig
+g = JC.createGame(1, seeded(1), { slaves: true }); g.cohorts.push({ tribe: 10, n: 1000, legion: 1, year: 1 });
+g.legions[1].le = 4000; vb = JC.beginBattle(g, 1, 8); vb.RO = 2000; vb.GA = vb.G - 10; vb.n = 0; JC.finishBattle(g, vb);
+assert.equal(g.legions[1].le, 2000); assert.equal(g.cohorts[0].n, 500);
+
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {
   const g = JC.createGame(sp, seeded(seed)); let years = 0;

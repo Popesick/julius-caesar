@@ -18,7 +18,7 @@ function fight(g, y, x, take) {                          // take: 'peace' | 'con
 }
 
 function play(sp, seed) {
-  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS }); let years = 0; const rnd = g.rnd;
+  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS, wealth: MERCS, slaves: MERCS }); let years = 0; const rnd = g.rnd;
   while (!g.over && years < 40) {
     years++;
     if (MERCS) for (let i = 1; i <= 4; i++) { const want = Math.min(9000 - g.legions[i].le, Math.floor(Math.max(0, g.rv - 25000) / 3 / 4)); JC.hireMercenaries(g, i, want); }

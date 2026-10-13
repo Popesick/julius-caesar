@@ -227,7 +227,7 @@ function renderSide() {
   const lg = $('#legions'); lg.innerHTML = '';
   for (let i = 1; i <= 4; i++) {
     const L = G.legions[i], d = document.createElement('div'); d.className = 'lg';
-    d.innerHTML = `<b>${ROMAN[i]}. Legion</b>${i === actLegion ? ' ◂' : ''}<br>${nf(L.le)} Mann ${bar(L.le, JC.MAX_LEGION)}Moral ${L.mv}/9 · ${L.sl}/${L.kl} Siege<br><span class="hint">${L.at ? G.tribes[L.at].name : 'Lager'}</span>`;
+    d.innerHTML = `<b>${ROMAN[i]}. Legion</b>${i === actLegion ? ' ◂' : ''}<br>${nf(L.le)} Mann ${bar(L.le, JC.MAX_LEGION)}Moral ${L.mv}/9 · ${L.sl}/${L.kl} Siege${JC.veteranCount(G, i) ? `<br><span class="hint" title="Ehemalige Geiseln, dienen ${JC.SERVICE_YEARS} Jahre">davon ${nf(JC.veteranCount(G, i))} Freiwillige</span>` : ''}<br><span class="hint">${L.at ? G.tribes[L.at].name : 'Lager'}</span>`;
     if (G.rules && G.rules.mercs) { const hb = document.createElement('button'); hb.className = 'hire'; hb.textContent = `Anwerben (${JC.MERC_COST} Den./Mann)`; hb.disabled = busy || L.le >= JC.MAX_LEGION;
       hb.addEventListener('click', e => { e.stopPropagation(); hireFlow(i); }); d.append(hb); }
     d.addEventListener('click', () => { actLegion = i; renderAll(); }); lg.append(d);
@@ -240,7 +240,7 @@ function renderSide() {
     ${t.ex ? '<p>Dieser Stamm wurde von Rom vernichtet.</p>' : `
     <dl><dt>Bevölkerung</dt><dd>${nf(t.be)}</dd><dt>Krieger</dt><dd>${nf(t.be / 5)}</dd>
     <dt>Haltung zu Rom</dt><dd>${att} (${t.br})</dd><dt>Geiseln in Rom</dt><dd>${nf(t.gr)}</dd>
-    <dt>Tribut pro Jahr</dt><dd>${nf(t.tr)}</dd><dt>Kriege gegen Rom</dt><dd>${t.rk}</dd><dt>Röm. Niederlagen</dt><dd>${t.rk - t.rs}</dd>
+    <dt>Tribut pro Jahr</dt><dd>${nf(t.tr)}</dd>${G.rules && G.rules.wealth ? `<dt>Reichtum</dt><dd title="Tribut bei Frieden: ${nf(JC.tributeBase(G, t))}">${'★'.repeat(JC.wealthStars(G, t))}${'☆'.repeat(5 - JC.wealthStars(G, t))} · ${nf(JC.tributeBase(G, t))}</dd>` : ''}<dt>Kriege gegen Rom</dt><dd>${t.rk}</dd><dt>Röm. Niederlagen</dt><dd>${t.rk - t.rs}</dd>
     ${t.vt === 2 ? '<dt>Hilfstruppen</dt><dd>1000/Jahr</dd>' : ''}</dl>${bar(Math.min(t.br, 12), 12, t.br === 0 ? 'red' : t.br > 10 ? 'blue' : '')}`}
     <div class="row">
       <button id="bNego" ${t.ex || !nego || busy ? 'disabled' : ''}>Verhandeln (${5 - G.vx} übrig)</button>
@@ -358,7 +358,7 @@ async function battle(ysIn, x) {
     if (ev.type === 'capitulation') {
       const ans = await ask({
         title: 'Kapitulationsangebot', img: 'standarten',
-        html: `<p>Die ${t.name} bieten an:</p><dl><dt>Geiseln</dt><dd>${nf(ev.hostages)}</dd><dt>Denare</dt><dd>${nf(ev.denars)}</dd></dl><p>… und einen Friedensvertrag (jährlicher Tribut 1000).</p>`,
+        html: `<p>Die ${t.name} bieten an:</p><dl><dt>Geiseln</dt><dd>${nf(ev.hostages)}</dd><dt>Denare</dt><dd>${nf(ev.denars)}</dd></dl><p>… und einen Friedensvertrag (jährlicher Tribut ${nf(JC.tributeBase(G, t))}).</p>`,
         buttons: [{ label: 'Weiterkämpfen', value: 'fight' }, { label: 'Annehmen', value: 'accept', cls: 'primary' }],
       });
       if (!dlg.open) dlg.showModal();
@@ -372,7 +372,7 @@ async function battle(ysIn, x) {
   if (ev.type === 'retreat') text = `Rückzug Roms. Davon ${nf(ev.fled)} Mann während des Rückzugs verloren.`;
   if (ev.type === 'flee') text = `Die Römer fliehen! Davon ${nf(ev.fled)} Mann auf der Flucht verloren.`;
   if (ev.type === 'lost') text = 'Die Legion ist aufgerieben. Rom unterliegt.';
-  if (ev.type === 'peace') text = `Friede mit den ${t.name}. Tribut 1000 Denare pro Jahr.`;
+  if (ev.type === 'peace') text = `Friede mit den ${t.name}. Tribut ${nf(JC.tributeBase(G, t))} Denare pro Jahr.`;
   let conquest = null;
   if (ev.type === 'conquered') {
     const loot = await askNumber({ title: 'Die Stadt ist erobert!', img: 'legionaer', html: `<p>Beute: bis zu ${nf(ev.maxLoot)} Denare. Mehr als die Hälfte erzürnt die Volksgruppe.</p>`, max: ev.maxLoot, value: Math.floor(ev.maxLoot / 2), label: 'Beute nehmen', unit: 'Denare' });
@@ -411,10 +411,13 @@ async function winter() {
     const bud = JC.budget(G);
     const ok = bud.soldiers > 0 && bud.total >= 1;
     await note('Jährlicher Bericht an den Senat', `<p><b>${bud.pacified}</b> der 30 Stämme sind befriedet.</p>
-      <dl><dt>Vermögen</dt><dd>${nf(G.rv)}</dd><dt>Tribute</dt><dd>+ ${nf(bud.income)}</dd><dt>Fixkosten (½ Soldaten)</dt><dd>− ${nf(bud.cost)}</dd><dt><b>Gesamt</b></dt><dd><b class="${bud.total < 1 ? 'bad' : 'good'}">${nf(bud.total)}</b></dd></dl>
+      <dl><dt>Vermögen</dt><dd>${nf(G.rv)}</dd><dt>Tribute</dt><dd>+ ${nf(bud.income)}</dd><dt>Fixkosten (½ Soldaten)</dt><dd>− ${nf(bud.cost)}</dd>${bud.discharge ? `<dt>Entlassungssold (${nf(bud.discharged)} Freiwillige × ${JC.DISCHARGE_PAY})</dt><dd>− ${nf(bud.discharge)}</dd>` : ''}<dt><b>Gesamt</b></dt><dd><b class="${bud.total < 1 ? 'bad' : 'good'}">${nf(bud.total)}</b></dd></dl>
       ${ok ? '<p>Sie werden für ein weiteres Jahr als Heerführer eingesetzt.</p>' : '<p class="bad">Der Senat entzieht Ihnen das Kommando.</p>'}`, 'Weiter', 'senator');
     JC.closeBudget(G);
     if (G.over === 'lose') return await endGame(bud.soldiers === 0 ? 'Alle Legionen sind vernichtet.' : 'Die Staatskasse ist leer – die Legionen sind nicht mehr zu bezahlen.');
+    if (bud.discharged) { log(`${nf(bud.discharged)} Freiwillige aus der Geiselhaft entlassen`); await note('Freiwillige kehren heim', `<p><b>${nf(bud.discharged)}</b> ehemalige Geiseln haben ${JC.SERVICE_YEARS} Jahre in den Legionen gedient. Sie erhalten den doppelten Betrag (${nf(bud.discharge)} Denare) und kehren zu ihren Stämmen zurück.</p>`, 'Weiter', 'zenturio'); }
+    const lv = JC.levyVolunteers(G);
+    if (lv.total) { log(`${nf(lv.total)} Geiseln schließen sich den Legionen an`); await note('Geiseln als Freiwillige', `<p>${JC.VOLUNTEER_RATE * 100} % der Geiseln schließen sich den Legionen an: <b>${nf(lv.total)}</b> Mann, kostenlos. Nach ${JC.SERVICE_YEARS} Jahren scheiden sie aus, kehren zu ihrem Stamm zurück und erhalten den doppelten Betrag.</p><p class="hint">${lv.list.slice(0, 8).map(e => `${G.tribes[e.tribe].name}: ${nf(e.n)}`).join(' · ')}${lv.list.length > 8 ? ' …' : ''}</p>`, 'Weiter', 'legionaer'); }
     for (let i = 1; i <= 4; i++) {
       const L = G.legions[i], info = JC.recruitInfo(G, i);
       if (info.full) { JC.recruit(G, i, 0); continue; }
@@ -464,13 +467,13 @@ async function startMenu() {
     title: 'Julius Caesar · Der Gallische Krieg', img: 'titel',
     html: `<p>Du bist Heerführer Roms. Führe vier Legionen durch Gallien und binde alle 30 Stämme durch Friedens- oder Freundschaftsverträge an Rom – mit Gold, Diplomatie oder Schwert.</p>
       <label class="hint">Spielstärke<select id="sp">${[1, 2, 3, 4, 5].map(i => `<option value="${i}">${i} – ${SP_TEXT[i]}</option>`).join('')}</select></label>
-      <label class="hint" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="mercs" checked style="margin-top:3px"><span><b>Komfort-Regeln:</b> Söldner jederzeit anwerben (3 Denare pro Mann) und gemeinsamer Angriff mehrerer Legionen. Abgewählt gelten die Originalregeln: Verstärkung nur im Winter, Legionen einzeln.</span></label>
+      <label class="hint" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="mercs" checked style="margin-top:3px"><span><b>Erweiterte Regeln:</b> Söldner anwerben (3 Denare/Mann), gemeinsamer Angriff mehrerer Legionen, Tribut nach Reichtum des Stammes, Geiseln als Freiwillige (5 % pro Jahr, 5 Jahre Dienst). Abgewählt gelten die Originalregeln.</span></label>
       <p class="hint">Fan-Nachbau nach den Regeln des C64-Klassikers (Kingsoft, 1989), rekonstruiert per Reverse Engineering. Grafik und Code sind neu.</p>`,
     buttons: [{ label: 'Regeln', value: 'help' }, ...(hasSave ? [{ label: 'Spielstand laden', value: 'load' }] : []), { label: 'Neues Spiel', value: d => 'new' + d.querySelector('#sp').value + (d.querySelector('#mercs').checked ? 'm' : ''), cls: 'primary' }],
   });
   if (pick === 'help') { await help(); return startMenu(); }
   if (pick === 'load') { if (load()) return begin(); }
-  G = JC.createGame(parseInt(String(pick).replace('new', '')) || 1, Math.random, { mercs: String(pick).endsWith('m'), combined: String(pick).endsWith('m') }); sel = 0; actLegion = 1; begin();
+  G = JC.createGame(parseInt(String(pick).replace('new', '')) || 1, Math.random, (f => ({ mercs: f, combined: f, wealth: f, slaves: f }))(String(pick).endsWith('m'))); sel = 0; actLegion = 1; begin();
   log('Die Legionen stehen bereit.');
 }
 function help() {
@@ -480,6 +483,7 @@ function help() {
     <p><b>Krieg:</b> Wähle Stamm und Legion. Kleine Stämme besiegt eine Legion, bei großen verblutet sie. Nach einem Drittel Verlusten bieten die Gallier Kapitulation an. Eroberung: Beute und Geiseln wählen; zu viel erzürnt die Volksgruppe, ein Stamm wird nur vernichtet, wenn alle zu Geiseln werden. Rückzug jederzeit möglich.</p>
     <p><b>Sold:</b> Nach jedem Kampf bestimmt der Sold die Moral (unter ½ Stärke −2, unter 1,1× −1, über 3,1× +1). Moral × 250 = Freiwillige im Winter.</p>
     <p><b>Taktik (aus den Regeln abgeleitet):</b> (1) Große Stämme (über ca. 70 000 Einwohner) zerschlagen jede einzelne Legion; Geld und Diplomatie sind der Weg, ein ganz früher Angriff ist ein Fehler. (2) Kleine Stämme mit Haltung ≤ 3 (Eburonen, Lexovier, Menapier, Osismer) sind ohne Aufruhr zu bezwingen; Kapitulation bringt ½ Bevölkerung in Denaren, Eroberung bis zu 2,3 × Bevölkerung (nimm höchstens die Hälfte und höchstens 10 % Geiseln, sonst Aufruhr). (3) Greife jedes Jahr einen feindlichen Stamm an (auch mit sofortigem Rückzug): das verhindert den allgemeinen Unmut im Winter. (4) Verbündete (Haltung über 10, Freundschaftsvertrag) sind vor der Jahresunruhe sicher und liefern Hilfstruppen. (5) Eine Legion allein bricht an Riesen. Mit „Gemeinsamer Angriff“ kämpfen mehrere Legionen als ein Verband mit der Summe ihrer Stärke; vier Legionen (18 000 Mann) zwingen sogar die Helvetier zur Kapitulation (≈100 000 Denare) bei etwa 3 700 Verlusten. Alternativ rücken Legionen nacheinander nach, die Verluste der Gallier bleiben im Jahr bestehen.</p>
+    <p><b>Erweiterte Regeln:</b> Der Tribut hängt vom Reichtum des Stammes ab (Größe × Volksgruppe: Volcer 1,3 · Gallier 1,0 · Aquitaner 0,9 · Belger 0,8; Friedenstribut = 1000 × Reichtum, nach Eroberung die Hälfte). Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an, dienen 5 Jahre und kehren dann heim; beim Ausscheiden erhalten sie den doppelten Anwerbebetrag (6 Denare).</p>
     <p><b>Winter:</b> Fixkosten = ½ Soldaten. Tribute bringen Einkommen. Sind Geld oder Legionen weg, ist das Spiel verloren.</p>`);
 }
 

@@ -450,6 +450,17 @@ Straßen, Legionsmarsch mit Zeitkosten, Ton, Mehrspieler im Spielrunde-Stil.
 
 ---
 
+### 9.0 Erweiterte Regeln des Nachbaus (nicht im Original, beim Spielstart wählbar)
+
+| Regel | Wirkung |
+|---|---|
+| Söldner | Legionen jederzeit auf bis zu 9000 Mann auffüllen, 3 Denare pro Mann. |
+| Gemeinsamer Angriff | Mehrere Legionen kämpfen als ein Verband mit der Summe der Stärken. Verluste, Siege und Sold werden anteilig verteilt. |
+| Reichtum | Tribut hängt von der Größe des Stammes ab: `Faktor = Ausgangsbevölkerung / 100 000 × Volksgruppe` (Belger 0,8 · Gallier 1,0 · Aquitaner 0,9 · Volcer 1,3, die Gewichte sind Erfindung des Nachbaus), mindestens 0,25. Friedenstribut = 1000 × Faktor (auf 50 gerundet), nach Eroberung die Hälfte, „Tribut erhöhen“ +2 × Basis bis 4 × Basis. Summe aller Friedenstribute ≈ 27 800 (Original: 30 000). Anzeige als ★ in der Stammeskarte. |
+| Geiseln als Freiwillige | Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an (auf die schwächsten Legionen verteilt). Nach 5 Jahren scheiden sie aus, kehren zu ihrem Stamm zurück (Bevölkerung steigt) und erhalten den doppelten Anwerbebetrag (6 Denare), der in den Jahresbericht einfließt. Verluste der Legion treffen die Freiwilligen anteilig. |
+
+Im Originalmodus (Haken abgewählt) gelten die Regeln aus Abschnitt 7 unverändert.
+
 ### 9.1 Komfort-Regeln und Balance (nicht im Original)
 
 Beim Spielen des Nachbaus zeigte sich, dass das Original sehr hart ist: Es gibt **keinen direkten Nachschub** (nur Winter-Freiwillige

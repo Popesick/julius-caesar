@@ -10,14 +10,14 @@
   // ---------------------------------------------------------------- Start
   function createGame(sp = 1, rnd = Math.random, rules = {}) {
     const g = {
-      sp, rnd, rules: { mercs: false, combined: false, ...rules }, year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
+      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, ...rules }, cohorts: [], year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
       kf: 0, lastX: 0, vs: 0, ga: 0,                     // KF: Winterangriff im Vorjahr, VS/GA: laufende Belagerung
       vx: 0, negotiated: [],                             // VX/V(): Verhandlungen dieses Jahres
       tribes: [null], legions: [null], over: null,
     };
     for (const t of DATA_TRIBES) g.tribes[t.id] = {
       id: t.id, name: t.name, group: t.group, x: t.x, y: t.y,
-      be: t.pop,                                         // BE: Bevoelkerung (Krieger = BE/5)
+      be: t.pop, pop0: t.pop,                            // BE: Bevoelkerung (Krieger = BE/5); pop0: Ausgangsgroesse
       br: t.attitude,                                    // BR: Haltung gegenueber Rom (0 = Krieg)
       vt: 0,                                             // VT: 0 frei, 1 Friedensvertrag, 2 Freundschaftsvertrag
       gr: 0, ex: 0, rk: 0, rs: 0, tr: 0, hi: 0,          // Geiseln, zerstoert, Kriege, Roemer-Siege, Tribut, Hilfstruppen
@@ -92,7 +92,7 @@
     else if (sa === 3 && t.br > 7) { if (Math.floor(g.rnd() * 2) === 1) { t.br += 1; ef = 1; } else ef = 0; }
     else if (sa === 4 && t.br !== 0 && t.gr > 0) { t.br += 2; t.be += t.gr; t.gr = 0; ef = 2; }
     else if (sa === 5 && t.br !== 0 && t.tr > 0) { t.tr = 0; t.br += 2; ef = 2; }
-    else if (sa === 6 && t.tr < 4000) { t.br -= 4; t.tr += 2000; ef = -1; }
+    else if (sa === 6 && t.tr < 4 * tributeBase(g, t)) { t.br -= 4; t.tr += 2 * tributeBase(g, t); ef = -1; }
     else if (sa === 7 && t.gr > 0) { t.gr = 0; t.br = 0; angerGroup(g, x); ef = -1; }
     if (ef === null) return { ef: null };
     g.vx += 1; g.negotiated.push(x);
@@ -107,7 +107,7 @@
       { sa: 3, label: 'Einberufung einer Konferenz', ok: t.br > 7 },
       { sa: 4, label: 'Freilassung der Geiseln', ok: t.br !== 0 && t.gr > 0 },
       { sa: 5, label: 'Verzicht auf die Tributforderungen', ok: t.br !== 0 && t.tr > 0 },
-      { sa: 6, label: 'Erhöhung der Tributforderungen', ok: t.tr < 4000 },
+      { sa: 6, label: 'Erhöhung der Tributforderungen', ok: t.tr < 4 * tributeBase(g, t) },
       { sa: 7, label: 'Hinrichtung der Geiseln', ok: t.gr > 0 },
     ];
   }
@@ -163,7 +163,7 @@
     t.br = 5; t.vt = 1;
     g.rv = Math.min(MAX_MONEY, g.rv + Math.floor(t.be / 2));
     t.gr += Math.floor(t.be / 10); t.be -= Math.floor(t.be / 10);
-    t.tr = 1000; b.n = 0;
+    t.tr = tributeBase(g, t); b.n = 0;
     return { type: 'peace' };
   }
   function conquered(g, b) {                                        // Zeilen 1530-1555
@@ -184,7 +184,7 @@
       t.ex = 1; t.br = 1000; t.vt = 1; angerAll(g, b.x); angerAll(g, b.x); destroyed = true;
     } else {
       if (hostages > t.be / 10) angerGroup(g, b.x);
-      t.gr += hostages; t.tr = 500; t.br = 4; t.vt = 1; t.be -= hostages;
+      t.gr += hostages; t.tr = Math.round(tributeBase(g, t) / 100) * 50; t.br = 4; t.vt = 1; t.be -= hostages;
     }
     return { destroyed, loot, hostages };
   }
@@ -199,7 +199,7 @@
       left -= lost;
       if (b.n === 1) L.mv = Math.max(0, L.mv - 1);
       else { L.mv = Math.min(9, L.mv + 1); L.sl += 1; }
-      L.kl += 1; L.le = Math.max(0, L.le - lost);
+      L.kl += 1; setLe(g, y, L.le - lost);
       L.at = b.x; L.x = t.x; L.y = t.y;
     });
     if (b.n !== 1) t.rs += 1;
@@ -240,7 +240,7 @@
     let mz = 0;
     for (let i = 1; i <= 4; i++) {
       const mn = Math.floor(g.rnd() * (xz * 600));
-      g.legions[i].le = Math.max(0, g.legions[i].le - mn); mz += mn;
+      setLe(g, i, g.legions[i].le - mn); mz += mn;
     }
     return { attackers, loss: mz, size: mz < 2000 ? 'gering' : mz > 4000 ? 'gewaltig' : 'groß' };
   }
@@ -248,13 +248,20 @@
     const income = g.tribes.reduce((s, t) => s + (t ? t.tr : 0), 0);
     const soldiers = g.legions.reduce((s, l) => s + (l ? l.le : 0), 0);
     const cost = Math.floor(soldiers / 2);
-    const total = Math.min(MAX_MONEY, g.rv + income - cost);
-    return { income, cost, soldiers, total, pacified: pacified(g) };
+    const due = dischargeDue(g), discharged = due.reduce((a, c) => a + c.n, 0), discharge = discharged * DISCHARGE_PAY;
+    const total = Math.min(MAX_MONEY, g.rv + income - cost - discharge);
+    return { income, cost, soldiers, total, pacified: pacified(g), discharge, discharged };
   }
   function closeBudget(g) {
     const b = budget(g);
     if (b.soldiers === 0 || b.total < 1) { g.over = 'lose'; return b; }
-    g.rv = b.total; return b;
+    g.rv = b.total;
+    for (const c of dischargeDue(g)) {                              // Freiwillige scheiden aus und kehren zu ihrem Stamm zurueck
+      const L = g.legions[c.legion], n = Math.min(c.n, L.le); L.le -= n;
+      const t = g.tribes[c.tribe]; if (t && !t.ex) t.be += n;
+      g.cohorts.splice(g.cohorts.indexOf(c), 1);
+    }
+    return b;
   }
   // Rekrutierung je Legion (Zeilen 4430-4680)
   function auxiliaries(g) { return g.tribes.reduce((s, t) => s + (t ? t.hi : 0), 0) / 4; }
@@ -270,6 +277,12 @@
     L.le = L.le + info.hi + n; return L.le;
   }
 
+  // ---------------------------------------------------------------- Erweiterte Regeln (nicht im Original)
+  // Reichtum: Groesse des Landes und Volksgruppe bestimmen den Tribut. Original: immer 1000 / 500 / +2000 / Grenze 4000.
+  const WEALTH_MULT = [0.8, 1.0, 0.9, 1.3];                         // Belger, Gallier, Aquitaner, Volcer (romanisiert, Handel)
+  function wealthFactor(g, t) { return g.rules && g.rules.wealth ? Math.max(0.25, t.pop0 / 100000 * WEALTH_MULT[t.group]) : 1; }
+  function tributeBase(g, t) { return Math.round(1000 * wealthFactor(g, t) / 50) * 50; }       // Tribut bei Friedensvertrag
+  function wealthStars(g, t) { return Math.max(1, Math.min(5, Math.round(wealthFactor(g, t) * 2))); }
   // ---------------------------------------------------------------- Komfort-Regeln (nicht im Original)
   const MERC_COST = 3;                                              // Denare pro angeworbenem Soeldner
   // Soeldner jederzeit anwerben: Legion bis max. 9000 Mann auffuellen. Original: nur Winter-Freiwillige.
@@ -280,6 +293,31 @@
     L.le += n; g.rv -= n * MERC_COST;
     if (n > 0) L.mv = Math.max(0, L.mv - 0);                        // Moral bleibt unveraendert
     return n;
+  }
+  // ---- Geiseln als Freiwillige: jaehrlich 5 % der Geiseln jedes Stammes schliessen sich kostenlos den Legionen an,
+  // dienen 5 Jahre, kehren dann zu ihrem Stamm zurueck und erhalten den doppelten Anwerbebetrag (2 x MERC_COST).
+  const SERVICE_YEARS = 5, VOLUNTEER_RATE = 0.05, DISCHARGE_PAY = 2 * 3;
+  function setLe(g, y, newLe) {                                    // Verluste treffen die Freiwilligen anteilig
+    const L = g.legions[y], old = L.le; L.le = Math.max(0, newLe);
+    if (g.cohorts && newLe < old && old > 0) for (const c of g.cohorts) if (c.legion === y) c.n = Math.floor(c.n * L.le / old);
+  }
+  function veteranCount(g, y) { return (g.cohorts || []).filter(c => c.legion === y).reduce((a, c) => a + c.n, 0); }
+  function dischargeDue(g) { return (g.cohorts || []).filter(c => g.year >= c.year + SERVICE_YEARS); }
+  function levyVolunteers(g) {
+    const out = { total: 0, list: [] };
+    if (!g.rules || !g.rules.slaves) return out;
+    for (const t of g.tribes) {
+      if (!t || t.gr <= 0) continue;
+      const raw = t.gr * VOLUNTEER_RATE; let n = Math.floor(raw) + (g.rnd() < raw - Math.floor(raw) ? 1 : 0); n = Math.min(n, t.gr);
+      let placed = 0;
+      while (placed < n) {                                         // auf die Legion mit der geringsten Staerke verteilen
+        const ys = [1, 2, 3, 4].filter(i => g.legions[i].le < MAX_LEGION).sort((a, b) => g.legions[a].le - g.legions[b].le);
+        if (!ys.length) break; const y = ys[0], k = Math.min(n - placed, MAX_LEGION - g.legions[y].le, Math.max(1, Math.ceil(n / 4)));
+        g.legions[y].le += k; placed += k; g.cohorts.push({ tribe: t.id, n: k, legion: y, year: g.year });
+      }
+      if (placed) { t.gr -= placed; out.total += placed; out.list.push({ tribe: t.id, n: placed }); }
+    }
+    return out;
   }
   // Lageeinschaetzung: simuliert Gefechte auf einer Kopie (veraendert g nicht).
   function assess(g, y, x, runs = 150) {
@@ -300,6 +338,6 @@
   const API = { createGame, beginYear, nextYear, pacified, checkVictory, attitudeLabel,
     canNegotiate, negotiate, negotiationOptions, attackCheck, beginBattle, stepBattle, retreat,
     acceptCapitulation, resolveConquest, finishBattle, payLegion, payLegions, moveLegion,
-    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, MERC_COST, MAX_LEGION };
+    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, MERC_COST, MAX_LEGION, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.JC = API;
 })(typeof window !== 'undefined' ? window : globalThis);
