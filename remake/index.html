@@ -183,7 +183,7 @@
     </div>
   </div>
   <aside>
-    <section class="card banner"><img src="assets/caesar.jpg?v=20261013g" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
+    <section class="card banner"><img src="assets/caesar.jpg?v=20261013h" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
     <section class="card" id="rankCard" hidden></section>
     <section class="card" id="tribeCard"></section>
     <section class="card"><h2>Legionen</h2><div class="legions" id="legions"></div>
@@ -192,7 +192,7 @@
   </aside>
 </main>
 <div id="title" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013g)"></div><div class="scrfade"></div>
+  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013h)"></div><div class="scrfade"></div>
   <div class="titlebox">
     <div class="kicker">Gallien · 58 – 50 v. Chr.</div>
     <h1>JULIUS CAESAR</h1>
@@ -206,7 +206,7 @@
   </div>
 </div>
 <div id="setup" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013g); opacity:.22"></div>
+  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013h); opacity:.22"></div>
   <div class="setupbox">
     <div><h2>Feldzug vorbereiten</h2><p class="lead">Wähle Schwierigkeitsgrad und Spielmodus. Danach beginnt dein Statthalteramt in der Provinz.</p></div>
     <div class="cols">
@@ -233,11 +233,11 @@
 <div id="errbar" hidden style="position:fixed;left:0;right:0;bottom:0;z-index:99;background:#7a2a22;color:#fff;padding:10px 16px;font-size:14px"></div>
 <dialog id="dlg"></dialog>
 
-<script src="data.js?v=20261013g"></script>
-<script src="engine.js?v=20261013g"></script>
-<script src="music.js?v=20261013g"></script>
-<script src="map.js?v=20261013g"></script>
-<script src="tactics.js?v=20261013g"></script>
+<script src="data.js?v=20261013h"></script>
+<script src="engine.js?v=20261013h"></script>
+<script src="music.js?v=20261013h"></script>
+<script src="map.js?v=20261013h"></script>
+<script src="tactics.js?v=20261013h"></script>
 <script>
 'use strict';
 window.addEventListener('error', e => { const b = document.getElementById('errbar'); if (b) { b.hidden = false; b.textContent = 'Fehler: ' + e.message + ' – bitte die Seite mit Strg+F5 (Cache leeren) neu laden. Besteht das Problem weiter, bitte melden.'; } });
@@ -257,7 +257,7 @@ const SP_TEXT = {
 /* ---------- Dialoge ---------- */
 const dlg = $('#dlg');
 dlg.addEventListener('cancel', e => e.preventDefault());
-const VER = '20261013g';
+const VER = '20261013h';
 const pic = (n, cls = '') => n ? `<img class="pic ${cls}" src="assets/${n}.jpg?v=${VER}" alt="" onerror="this.remove()">` : '';
 function ask({ title, html = '', img = '', buttons = [{ label: 'Weiter', value: true, cls: 'primary' }], mount }) {
   return new Promise(res => {
@@ -908,7 +908,7 @@ function help() {
     <p><b>Taktik (aus den Regeln abgeleitet):</b> (1) Große Stämme (über ca. 70 000 Einwohner) zerschlagen jede einzelne Legion; Geld und Diplomatie sind der Weg, ein ganz früher Angriff ist ein Fehler. (2) Kleine Stämme mit Haltung ≤ 3 (Eburonen, Lexovier, Menapier, Osismer) sind ohne Aufruhr zu bezwingen; Kapitulation bringt ½ Bevölkerung in Denaren, Eroberung bis zu 2,3 × Bevölkerung (nimm höchstens die Hälfte und höchstens 10 % Geiseln, sonst Aufruhr). (3) Greife jedes Jahr einen feindlichen Stamm an (auch mit sofortigem Rückzug): das verhindert den allgemeinen Unmut im Winter. (4) Verbündete (Haltung über 10, Freundschaftsvertrag) sind vor der Jahresunruhe sicher und liefern Hilfstruppen. (5) Eine Legion allein bricht an Riesen. Mit „Gemeinsamer Angriff“ kämpfen mehrere Legionen als ein Verband mit der Summe ihrer Stärke; vier Legionen (18 000 Mann) zwingen sogar die Helvetier zur Kapitulation (≈100 000 Denare) bei etwa 3 700 Verlusten. Alternativ rücken Legionen nacheinander nach, die Verluste der Gallier bleiben im Jahr bestehen.</p>
     <p><b>Karte (erweiterte Regeln):</b> Die 30 Stämme liegen an ihrer historischen Stelle. Angreifen, Verhandeln und Marschieren geht nur bei Stämmen in Reichweite: Nachbarn der Provinz oder eines befriedeten Stammes. Kämpfende (feindliche) Stämme stecken ihre unbefriedeten Nachbarn mit Unruhe an – Unruheherde im Norden und Westen musst du dir Schritt für Schritt erarbeiten. Winterüberfälle kommen nur von feindlichen Stämmen in Reichweite.</p>
     <p><b>Diplomatie (erweiterte Regeln):</b> Friedensbedingungen wählen (mehr Tribut, Geiseln, Entschädigung oder mild). Sondierungsgespräche sind kostenlos, aber unsicher. Ein Ultimatum lässt Stämme bei großer Übermacht einknicken (Erfolg erspart den Kampf, Misserfolg bedeutet Krieg). Nach einem Friedensvertrag kann man zusätzliche Geiseln fordern.</p>
-    <p><b>Taktische Schlachten (erweiterte Regeln):</b> Im Angriffsdialog wählst du „Schlacht auf dem Feld“ oder „Schnell auflösen“. Auf dem Feld stellst du dein Heer im Aufmarschgebiet (untere drei Reihen) selbst auf, dann ziehen beide Seiten abwechselnd. Jede Einheit steht für bis zu 500 Mann (Heere über 15.000 Mann: 1.000, über 25.000: 2.000; beide Seiten haben dieselbe Einheitengröße); Römer: Legionäre (Pilum-Infanterie, 75–88 %), Bogenschützen (12 %), ab Tribun Reiter (10 %). Gallier kämpfen nach ihrer Volksgruppe mit Lanzenträgern, Schwertkämpfern, Schleudern/Bogen und Reitern, aber ohne feste Struktur (schwächere Moral und Kampfkraft, keine Formationsboni). Gelände: Wald und Hügel schützen, Sumpf und Furten hemmen, Wasser und Fels sperren; jedes Schlachtfeld ist an die Landschaft des Stammes angelehnt. Wald: ×1,3 Verteidigung (gegen Pfeile ×1,6) und weniger Schaden (−15 %, durch Pfeile −30 %); Schützen im Wald verlieren 1 Reichweite und 30 % Schaden, auf Hügeln gewinnen sie 1 Reichweite. Römische Infanterie hat zwei Formationen: Phalanx (normal) und Marsch (doppelte Bewegung, halber Angriff und halbe Verteidigung; Aufbau der Phalanx kostet die Aktion). Moral: Verluste, Flankenangriffe und fliehende Nachbarn senken sie; römische Einheiten mit Nachbarn verlieren weniger, wer von Fliehenden umgeben ist, gerät in Panik; Fliehende laufen durch die eigene Linie; bei zu wenig Moral flieht die Einheit. Bricht ein Heer zusammen, ist die Schlacht entschieden. Ein Sieg führt zum Kapitulationsangebot, eine Niederlage kostet die Legion Männer.</p>
+    <p><b>Taktische Schlachten (erweiterte Regeln):</b> Im Angriffsdialog wählst du „Schlacht auf dem Feld“ oder „Schnell auflösen“. Auf dem Feld stellst du dein Heer im Aufmarschgebiet (untere drei Reihen) selbst auf, dann ziehen beide Seiten abwechselnd. Jede Einheit steht für bis zu 500 Mann (ab 25.000 Mann auf römischer Seite 1.000; beide Seiten haben dieselbe Einheitengröße, höchstens 40 Einheiten je Seite); Römer: Legionäre (Pilum-Infanterie, 75–88 %), Bogenschützen (12 %), ab Tribun Reiter (10 %). Gallier kämpfen nach ihrer Volksgruppe mit Lanzenträgern, Schwertkämpfern, Schleudern/Bogen und Reitern, aber ohne feste Struktur (schwächere Moral und Kampfkraft, keine Formationsboni). Gelände: Wald und Hügel schützen, Sumpf und Furten hemmen, Wasser und Fels sperren; jedes Schlachtfeld ist an die Landschaft des Stammes angelehnt. Wald: ×1,3 Verteidigung (gegen Pfeile ×1,6) und weniger Schaden (−15 %, durch Pfeile −30 %); Schützen im Wald verlieren 1 Reichweite und 30 % Schaden, auf Hügeln gewinnen sie 1 Reichweite. Römische Infanterie hat zwei Formationen: Phalanx (normal) und Marsch (doppelte Bewegung, halber Angriff und halbe Verteidigung; Aufbau der Phalanx kostet die Aktion). Moral: Verluste, Flankenangriffe und fliehende Nachbarn senken sie; römische Einheiten mit Nachbarn verlieren weniger, wer von Fliehenden umgeben ist, gerät in Panik; Fliehende laufen durch die eigene Linie; bei zu wenig Moral flieht die Einheit. Bricht ein Heer zusammen, ist die Schlacht entschieden. Ein Sieg führt zum Kapitulationsangebot, eine Niederlage kostet die Legion Männer.</p>
     <p><b>Ränge und Ansehen (erweiterte Regeln):</b> Du beginnst als <b>Offizier</b>; deine Legionen dürfen höchstens 4.500 Mann stark sein. Mit Ansehen steigst du auf: Offizier → Zenturio (5.000) → Tribun (5.500, Kavallerie) → Legat (6.000) → General (6.500) → Prätor (7.000) → Konsul (7.500) → Prokonsul (8.000) → <b>Caesar (9.000)</b>. Ansehen bringen neue Provinzen (reiche mehr, Verhandlung/Ultimatum noch mehr), Bündnisse, gefestigte Verträge, gewonnene Wagenrennen und gerechte Urteile in der Arena. Es sinkt bei Niederlagen, Aufständen, zerbrochenen Bündnissen, Plünderung und verlorenen Rennen; der Rang geht nie verloren. Die Zufriedenheit Roms (0–100 %) hebt im Winter die Moral. Caesar wirst du nur mit hoher Zufriedenheit, mehreren Spielen und Bündnissen.</p>
     <p><b>Einsatzrhythmus und Finanzen (erweiterte Regeln):</b> Jede Legion kann pro Jahr nur einmal eingesetzt werden (Marsch, Angriff oder Ultimatum im Angriffsdialog); das Verhandlungs-Ultimatum bindet keine Legion. Die Provinz zahlt 8.000 Denare Steuern pro Jahr, der Sold ist auf 40 % des Originals gesenkt. Plane deine vier Armeen also wie vier Pfeile pro Jahr.</p>
     <p><b>Erweiterte Regeln (Fortsetzung):</b> Der Tribut hängt vom Reichtum des Stammes ab (Größe × Volksgruppe: Volcer 1,3 · Gallier 1,0 · Aquitaner 0,9 · Belger 0,8; Friedenstribut = 1000 × Reichtum, nach Eroberung die Hälfte). Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an, dienen 5 Jahre und kehren dann heim; beim Ausscheiden erhalten sie den doppelten Anwerbebetrag (6 Denare).</p>

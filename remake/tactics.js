@@ -104,8 +104,8 @@
   const siteName = tribeId => (SITES[tribeId] || ['plain', 'Schlachtfeld'])[1];
 
   // ---------------------------------------------------------------- Armeen
-  // Einheitengroesse je Heer: bis 15 000 Mann 500, ueber 15 000 Mann 1 000, ueber 25 000 Mann 2 000 (Rest als kleinere Einheit)
-  const unitScale = total => total > 25000 ? 2000 : total > 15000 ? 1000 : UNIT_MEN;
+  // Einheitengroesse: 500 Mann; ueber 25 000 Mann auf roemischer Seite 1 000 Mann (Rest als kleinere Einheit)
+  const unitScale = total => total > 25000 ? 1000 : UNIT_MEN;
   function splitUnits(total, scale) {
     const sc = scale || unitScale(total), out = []; let left = Math.min(total, MAX_UNITS * sc);
     while (left > 0 && out.length < MAX_UNITS) { const m = Math.min(sc, left); if (m >= 60 || !out.length) out.push(m); left -= m; }      // Reste unter 60 Mann bilden keine Einheit
@@ -137,7 +137,7 @@
     // opts: {tribeId, seed, romanMen, romanMorale (0-9 mv), cavalry, gaulMen, group, hostile}
     const R = rng((opts.seed || 1) * 31 + 7);
     const s = { cols: COLS, rows: ROWS, tribeId: opts.tribeId, siteName: siteName(opts.tribeId), terrain: genTerrain(opts.tribeId, opts.seed || 1), units: [], turn: 1, maxTurns: MAX_TURNS, phase: 'deploy', side: 'R', over: null, log: [], rnd: R, nextId: 1, startUnits: { R: 0, G: 0 }, panicG: false };
-    const sc = unitScale(Math.max(opts.romanMen, opts.gaulMen)); s.scale = { R: sc, G: sc };         // beide Seiten gleiche Einheitengroesse: bestimmt vom groesseren Heer
+    const sc = unitScale(opts.romanMen); s.scale = { R: sc, G: sc };         // beide Seiten gleiche Einheitengroesse, bestimmt vom roemischen Heer
     const rc = romanComposition(opts.romanMen, !!opts.cavalry, sc), rm = splitUnits(opts.romanMen, sc), gc = gaulComposition(opts.gaulMen, opts.group, opts.tribeId, sc), gm = splitUnits(opts.gaulMen, sc);
     const moraleR = Math.min(100, 52 + (opts.romanMorale == null ? 5 : opts.romanMorale) * 5), moraleG = opts.hostile ? K.hostileG : K.moraleG;
     const mk = (side, type, men, morale) => ({ id: s.nextId++, side, type, men, max: s.scale[side], form: 'phalanx', morale: Math.max(20, Math.min(100, morale + (side === 'G' ? Math.round((R() - 0.5) * 10) : 0))), col: -1, row: -1, acted: false, moved: 0, routed: false, gone: false, killed: 0, fledMen: 0, pilum: false, placed: false });

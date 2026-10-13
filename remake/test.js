@@ -209,12 +209,13 @@ g = JC.createGame(1, seeded(20), { tactics: true, rank: true }); tbt = JC.beginB
 g.rankIdx = 2; assert.equal(JC.tacticalOpts(g, tbt).cavalry, true);                                                                              // Kavallerie ab Tribun
 
 // --- Taktik: Einheitengroessen, Wald, Reichweiten, Formationen, Moral, Flucht
-assert.equal(TAC.unitScale(15000), 500); assert.equal(TAC.unitScale(15001), 1000); assert.equal(TAC.unitScale(25000), 1000); assert.equal(TAC.unitScale(25001), 2000);
-assert.deepEqual(TAC.splitUnits(15579), [...Array(15).fill(1000), 579]); assert.equal(TAC.splitUnits(26000).length, 13); assert.equal(TAC.splitUnits(26000)[0], 2000);
-assert.equal(TAC.splitUnits(200000).length, 40);                                                                            // Reserve bei riesigen Heeren
-const cb = TAC.newBattle({ tribeId: 19, seed: 2, romanMen: 4500, romanMorale: 5, gaulMen: 20000, group: 1 });                // gemeinsame Einheitengroesse (vom groesseren Heer)
-assert.equal(cb.scale.R, 1000); assert.equal(cb.scale.G, 1000); assert.equal(cb.units.filter(u => u.side === 'R').length, 5); assert.equal(cb.units.filter(u => u.side === 'G').length, 20);
-assert(cb.units.every(u => u.max === 1000 && u.men <= 1000));
+assert.equal(TAC.unitScale(15001), 500); assert.equal(TAC.unitScale(25000), 500); assert.equal(TAC.unitScale(25001), 1000);
+assert.deepEqual(TAC.splitUnits(15579), [...Array(31).fill(500), 79]); assert.equal(TAC.splitUnits(26000).length, 26); assert.equal(TAC.splitUnits(26000)[0], 1000);
+assert.deepEqual(TAC.splitUnits(25579), [...Array(25).fill(1000), 579]); assert.equal(TAC.splitUnits(24999).length, 40); assert.equal(TAC.splitUnits(200000).length, 40);       // Aufgebot hoechstens 40 Einheiten
+let cb = TAC.newBattle({ tribeId: 19, seed: 2, romanMen: 4500, romanMorale: 5, gaulMen: 40000, group: 1 });                    // gemeinsame Einheitengroesse, vom roemischen Heer bestimmt
+assert.equal(cb.scale.R, 500); assert.equal(cb.scale.G, 500); assert.equal(cb.units.filter(u => u.side === 'R').length, 9); assert.equal(cb.units.filter(u => u.side === 'G').length, 40);   // Gegner: Aufgebot max. 40 Einheiten
+cb = TAC.newBattle({ tribeId: 19, seed: 2, romanMen: 30000, romanMorale: 5, gaulMen: 20000, group: 1 });
+assert.equal(cb.scale.R, 1000); assert.equal(cb.scale.G, 1000); assert.equal(cb.units.filter(u => u.side === 'R').length, 30); assert.equal(cb.units.filter(u => u.side === 'G').length, 20); assert(cb.units.every(u => u.max === 1000 && u.men <= 1000));
 const mini = () => { const s = TAC.newBattle({ tribeId: 19, seed: 1, romanMen: 500, romanMorale: 5, gaulMen: 500, group: 1 }); s.units = []; s.terrain = s.terrain.map(r => r.map(() => 'plain')); s.phase = 'fight'; s.side = 'R'; return s; };
 const add = (s, side, type, c, r, men = 500) => { const u = { id: s.nextId++, side, type, men, max: 500, morale: 80, col: c, row: r, acted: false, moved: 0, routed: false, gone: false, killed: 0, fledMen: 0, pilum: false, placed: true, form: 'phalanx' }; s.units.push(u); return u; };
 { // Wald: bessere Verteidigung (gegen Pfeile doppelt), weniger Schaden
