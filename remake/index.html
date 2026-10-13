@@ -61,6 +61,7 @@
   .banner { display: flex; gap: 12px; align-items: center; padding: 8px 12px; }
   .banner img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; object-position: center 12%; border: 2px solid var(--gold); }
   .lg .hire { margin-top: 4px; padding: 3px 8px; font-size: 12.5px; width: 100%; }
+  label.joint { display: flex; gap: 8px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
   .legions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .lg { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; font-size: 13px; }
   .lg b { color: var(--gold); }
@@ -245,7 +246,9 @@ function renderSide() {
       <button id="bNego" ${t.ex || !nego || busy ? 'disabled' : ''}>Verhandeln (${5 - G.vx} übrig)</button>
     </div>
     <h3>Legion entsenden</h3>
-    <div class="row">${[1, 2, 3, 4].map(i => `<button data-send="${i}" ${busy ? 'disabled' : ''}>${ROMAN[i]} · ${nf(G.legions[i].le)}</button>`).join('')}</div>`;
+    <div class="row">${[1, 2, 3, 4].map(i => `<button data-send="${i}" ${busy ? 'disabled' : ''}>${ROMAN[i]} · ${nf(G.legions[i].le)}</button>`).join('')}</div>
+    ${G.rules && G.rules.combined ? `<div class="row"><button id="bJoint" class="danger" ${busy ? 'disabled' : ''}>Gemeinsamer Angriff …</button></div>` : ''}`;
+  const jb = $('#bJoint'); if (jb) jb.onclick = () => jointFlow(sel);
   const nb = $('#bNego'); if (nb) nb.onclick = () => negotiateFlow(sel);
   c.querySelectorAll('[data-send]').forEach(b => b.onclick = () => { actLegion = +b.dataset.send; sendLegion(+b.dataset.send, sel); });
 }
@@ -285,25 +288,41 @@ async function negotiateFlow(x) {
 }
 
 /* ---------- Legion entsenden / Kampf ---------- */
-async function sendLegion(y, x) {
+const ROMANS = ys => { const r = ys.map(i => ROMAN[i]); return (r.length > 1 ? r.slice(0, -1).join(', ') + ' und ' + r[r.length - 1] : r[0]) + (ys.length > 1 ? '. Legion (Verband)' : '. Legion'); };
+async function jointFlow(x) {
+  if (busy) return; const t = G.tribes[x];
+  const list = [1, 2, 3, 4].filter(i => G.legions[i].le > 0);
+  if (!list.length) { await note('Keine Legion einsatzfähig', '<p>Alle Legionen sind aufgerieben.</p>'); return; }
+  const picked = await ask({
+    title: `Gemeinsamer Angriff auf die ${t.name}`, img: 'standarten',
+    html: `<p>Welche Legionen ziehen gemeinsam in die Schlacht? Der Verband kämpft mit der <b>Summe</b> der Stärken; Verluste, Moral und Sold werden anteilig verteilt.</p>
+      <div class="opt">${list.map(i => `<label class="joint"><input type="checkbox" value="${i}" checked> ${ROMAN[i]}. Legion · ${nf(G.legions[i].le)} Mann · Moral ${G.legions[i].mv}</label>`).join('')}</div>
+      <p class="hint">Gesamtstärke: <b id="jt"></b> Mann · Krieger der ${t.name}: <b>${nf(G.vs === x ? G.ga : t.be / 5)}</b></p>`,
+    buttons: [{ label: 'Abbrechen', value: null }, { label: 'Weiter', value: d => [...d.querySelectorAll('input[type=checkbox]:checked')].map(c => +c.value), cls: 'primary' }],
+    mount: api => { const upd = () => { api.el.querySelector('#jt').textContent = nf([...api.el.querySelectorAll('input:checked')].reduce((a, c) => a + G.legions[+c.value].le, 0)); }; api.el.querySelectorAll('input').forEach(c => c.addEventListener('change', upd)); upd(); },
+  });
+  if (picked && picked.length) { actLegion = picked[0]; sendLegion(picked, x); }
+}
+async function sendLegion(ysIn, x) {
+  const ys = [].concat(ysIn), y = ys[0];
   if (busy) return; busy = true; renderSide();
   try {
-    const t = G.tribes[x], L = G.legions[y], chk = JC.attackCheck(G, y, x);
+    const t = G.tribes[x], total = ys.reduce((a, i) => a + G.legions[i].le, 0), chk = JC.attackCheck(G, ys, x);
     if (!chk.ok) {
-      const why = { destroyed: 'Diese Stadt ist schon vernichtet!', treaty: 'Du hast einen Friedensvertrag mit diesem Volk unterschrieben!', empty: `Die ${ROMAN[y]}. Legion hat keine Soldaten mehr.` }[chk.reason];
-      JC.moveLegion(G, y, x); G.vs = 0; await note('Kein Angriff möglich', `<p>${why}</p><p class="hint">Die Legion bezieht Stellung bei den ${t.name}.</p>`); return;
+      const why = { destroyed: 'Diese Stadt ist schon vernichtet!', treaty: 'Du hast einen Friedensvertrag mit diesem Volk unterschrieben!', empty: `${ys.length > 1 ? 'Diese Legionen haben' : 'Die ' + ROMAN[y] + '. Legion hat'} keine Soldaten mehr.` }[chk.reason];
+      JC.moveLegion(G, ys, x); G.vs = 0; await note('Kein Angriff möglich', `<p>${why}</p><p class="hint">Die Legion bezieht Stellung bei den ${t.name}.</p>`); return;
     }
-    const as = JC.assess(G, y, x, 120);
+    const as = JC.assess(G, ys, x, 120);
     const act = await ask({
-      title: `${ROMAN[y]}. Legion vor der Stadt der ${t.name}`, img: 'legionaer',
-      html: `<dl><dt>Bevölkerung</dt><dd>${nf(t.be)}</dd><dt>Krieger${G.vs === x ? ' (Belagerung läuft)' : ''}</dt><dd>${nf(G.vs === x ? G.ga : t.be / 5)}</dd><dt>Eigene Legion</dt><dd>${nf(L.le)} Mann</dd></dl>
-        <p class="hint"><b>Lageeinschätzung der Offiziere</b> (eine Legion allein): Kapitulation ${as.capitulation} % · Eroberung ${as.conquered} % · Niederlage ${as.defeat} % — erwartete Verluste ${nf(as.loss)} Mann, Feindverluste ${nf(as.theirLoss)}.${as.defeat > 60 ? ' <span class="bad">Diese Legion allein wird zerschellen. Die Gallier erholen sich nicht innerhalb des Jahres: weitere Legionen können nachrücken.</span>' : ''}</p>
+      title: `${ROMANS(ys)} vor der Stadt der ${t.name}`, img: 'legionaer',
+      html: `<dl><dt>Bevölkerung</dt><dd>${nf(t.be)}</dd><dt>Krieger${G.vs === x ? ' (Belagerung läuft)' : ''}</dt><dd>${nf(G.vs === x ? G.ga : t.be / 5)}</dd><dt>${ys.length > 1 ? 'Eigener Verband' : 'Eigene Legion'}</dt><dd>${nf(total)} Mann</dd></dl>
+        <p class="hint"><b>Lageeinschätzung der Offiziere</b> (${ys.length > 1 ? 'Verband' : 'eine Legion allein'}): Kapitulation ${as.capitulation} % · Eroberung ${as.conquered} % · Niederlage ${as.defeat} % — erwartete Verluste ${nf(as.loss)} Mann, Feindverluste ${nf(as.theirLoss)}.${as.defeat > 60 ? ` <span class="bad">${ys.length > 1 ? 'Dieser Verband' : 'Diese Legion allein'} wird zerschellen.${G.rules && G.rules.combined && ys.length < 4 ? ' Ein gemeinsamer Angriff mit mehr Legionen verbessert die Lage stark.' : ''}</span>` : ''}</p>
         ${t.br > 3 ? `<p class="hint">Achtung: Der Angriff auf einen Stamm, der Rom nicht feindlich gesinnt ist, erzürnt seine Volksgruppe (${GROUPS[t.group]}).</p>` : ''}`,
       buttons: [{ label: 'Weiterziehen', value: 'move' }, { label: 'Angreifen', value: 'attack', cls: 'danger' }],
     });
-    if (act === 'move') { JC.moveLegion(G, y, x); G.vs = 0; log(`${ROMAN[y]}. Legion bei den ${t.name}`); return; }
-    let res = await battle(y, x);
-    const used = new Set([y]);
+    if (act === 'move') { JC.moveLegion(G, ys, x); G.vs = 0; log(`${ROMANS(ys)} bei den ${t.name}`); return; }
+    let res = await battle(ys, x);
+    const used = new Set(ys);
     while (res === 'cont' && G.over !== 'win' && G.tribes[x].vt === 0 && !G.tribes[x].ex) {
       const rest = [1, 2, 3, 4].filter(i => !used.has(i) && G.legions[i].le > 0);
       if (!rest.length) break;
@@ -317,9 +336,9 @@ async function sendLegion(y, x) {
   } finally { busy = false; renderAll(); if (G.over !== 'win') Music.play('map'); }
 }
 
-async function battle(y, x) {
+async function battle(ysIn, x) {
   const t = G.tribes[x]; Music.play('battle');
-  const b = JC.beginBattle(G, y, x);
+  const b = JC.beginBattle(G, ysIn, x), ys = b.ys, y = b.y;
   let wantRetreat = false, ev;
   dlg.innerHTML = `<div class="dlg">${pic('standarten')}<h2>Römisches Reich gegen ${t.name}</h2><div class="vs"><div><div class="nm">Rom</div><div class="n" id="bR"></div>${bar(1, 1)}</div><div>⚔</div><div><div class="nm">${t.name}</div><div class="n" id="bG"></div>${bar(1, 1, 'red')}</div></div>
     <p class="hint" id="bMsg">Die Schlacht tobt …</p><div class="btns"><button id="bRet" class="danger">Rückzug</button></div></div>`;
@@ -362,13 +381,14 @@ async function battle(y, x) {
     text = conquest.destroyed ? `Die ${t.name} sind vernichtet. Ganz Gallien ist erschüttert.` : `Die ${t.name} sind unterworfen: ${nf(conquest.hostages)} Geiseln, ${nf(conquest.loot)} Denare Beute.`;
   }
   const fin = JC.finishBattle(G, b);
-  log(`${ROMAN[y]}. Legion ${b.n ? 'unterliegt' : 'siegt'} bei den ${t.name} (−${nf(fin.lost)} Mann)`);
-  await note(b.n ? 'Niederlage' : 'Sieg', `<p>${text}</p><dl><dt>Eigene Verluste</dt><dd>${nf(fin.lost)}</dd><dt>Legion jetzt</dt><dd>${nf(G.legions[y].le)} Mann</dd><dt>Moral</dt><dd>${G.legions[y].mv}/9</dd></dl>`, 'Weiter', b.n ? 'reiter' : 'legionaer');
+  log(`${ROMANS(ys)} ${b.n ? 'unterliegt' : 'siegt'} bei den ${t.name} (−${nf(fin.lost)} Mann)`);
+  await note(b.n ? 'Niederlage' : 'Sieg', `<p>${text}</p><dl><dt>Eigene Verluste</dt><dd>${nf(fin.lost)}</dd>${ys.map(i => `<dt>${ROMAN[i]}. Legion jetzt</dt><dd>${nf(G.legions[i].le)} Mann · Moral ${G.legions[i].mv}/9</dd>`).join('')}</dl>`, 'Weiter', b.n ? 'reiter' : 'legionaer');
   if (G.over === 'win') { await endGame(); return 'over'; }
-  if (G.legions[y].le > 0 || G.rv > 0) {
-    const L = G.legions[y];
-    const pay = await askNumber({ title: `Sold für die ${ROMAN[y]}. Legion`, img: 'zenturio', html: `<p>Wie viel zahlst du den ${nf(L.le)} Soldaten? (Dein Vermögen: ${nf(G.rv)})</p><p class="hint">Die Moral reagiert auf die Höhe des Solds im Verhältnis zur Stärke.</p>`, max: G.rv, value: Math.min(G.rv, Math.floor(L.le * 1.5)), label: 'Auszahlen', unit: 'Denare' });
-    JC.payLegion(G, y, pay);
+  const sum = ys.reduce((a, i) => a + G.legions[i].le, 0);
+  if (sum > 0 || G.rv > 0) {
+    const L = { le: sum };
+    const pay = await askNumber({ title: `Sold für ${ROMANS(ys)}`, img: 'zenturio', html: `<p>Wie viel zahlst du den ${nf(L.le)} Soldaten? (Dein Vermögen: ${nf(G.rv)})</p><p class="hint">Die Moral reagiert auf die Höhe des Solds im Verhältnis zur Stärke.</p>`, max: G.rv, value: Math.min(G.rv, Math.floor(L.le * 1.5)), label: 'Auszahlen', unit: 'Denare' });
+    JC.payLegions(G, ys, pay);
   }
   return b.n === 1 ? 'cont' : 'won';
 }
@@ -444,13 +464,13 @@ async function startMenu() {
     title: 'Julius Caesar · Der Gallische Krieg', img: 'titel',
     html: `<p>Du bist Heerführer Roms. Führe vier Legionen durch Gallien und binde alle 30 Stämme durch Friedens- oder Freundschaftsverträge an Rom – mit Gold, Diplomatie oder Schwert.</p>
       <label class="hint">Spielstärke<select id="sp">${[1, 2, 3, 4, 5].map(i => `<option value="${i}">${i} – ${SP_TEXT[i]}</option>`).join('')}</select></label>
-      <label class="hint" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="mercs" checked style="margin-top:3px"><span><b>Komfort-Regel:</b> Söldner jederzeit anwerben (3 Denare pro Mann). Abgewählt gelten die Originalregeln: Verstärkung nur im Winter.</span></label>
+      <label class="hint" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="mercs" checked style="margin-top:3px"><span><b>Komfort-Regeln:</b> Söldner jederzeit anwerben (3 Denare pro Mann) und gemeinsamer Angriff mehrerer Legionen. Abgewählt gelten die Originalregeln: Verstärkung nur im Winter, Legionen einzeln.</span></label>
       <p class="hint">Fan-Nachbau nach den Regeln des C64-Klassikers (Kingsoft, 1989), rekonstruiert per Reverse Engineering. Grafik und Code sind neu.</p>`,
     buttons: [{ label: 'Regeln', value: 'help' }, ...(hasSave ? [{ label: 'Spielstand laden', value: 'load' }] : []), { label: 'Neues Spiel', value: d => 'new' + d.querySelector('#sp').value + (d.querySelector('#mercs').checked ? 'm' : ''), cls: 'primary' }],
   });
   if (pick === 'help') { await help(); return startMenu(); }
   if (pick === 'load') { if (load()) return begin(); }
-  G = JC.createGame(parseInt(String(pick).replace('new', '')) || 1, Math.random, { mercs: String(pick).endsWith('m') }); sel = 0; actLegion = 1; begin();
+  G = JC.createGame(parseInt(String(pick).replace('new', '')) || 1, Math.random, { mercs: String(pick).endsWith('m'), combined: String(pick).endsWith('m') }); sel = 0; actLegion = 1; begin();
   log('Die Legionen stehen bereit.');
 }
 function help() {
@@ -459,7 +479,7 @@ function help() {
     <p><b>Verhandeln:</b> bis zu 5× pro Jahr, jeden Stamm nur einmal: Geschenke (teuer bei hoher Bevölkerung und Feindseligkeit), Konferenz (ab Haltung 8), Geiseln freilassen, Tribut erlassen oder erhöhen, Freundschaftsvertrag (ab Haltung 11, bringt 1000 Hilfstruppen/Jahr).</p>
     <p><b>Krieg:</b> Wähle Stamm und Legion. Kleine Stämme besiegt eine Legion, bei großen verblutet sie. Nach einem Drittel Verlusten bieten die Gallier Kapitulation an. Eroberung: Beute und Geiseln wählen; zu viel erzürnt die Volksgruppe, ein Stamm wird nur vernichtet, wenn alle zu Geiseln werden. Rückzug jederzeit möglich.</p>
     <p><b>Sold:</b> Nach jedem Kampf bestimmt der Sold die Moral (unter ½ Stärke −2, unter 1,1× −1, über 3,1× +1). Moral × 250 = Freiwillige im Winter.</p>
-    <p><b>Taktik (aus den Regeln abgeleitet):</b> (1) Große Stämme (über ca. 70 000 Einwohner) zerschlagen jede einzelne Legion; Geld und Diplomatie sind der Weg, ein ganz früher Angriff ist ein Fehler. (2) Kleine Stämme mit Haltung ≤ 3 (Eburonen, Lexovier, Menapier, Osismer) sind ohne Aufruhr zu bezwingen; Kapitulation bringt ½ Bevölkerung in Denaren, Eroberung bis zu 2,3 × Bevölkerung (nimm höchstens die Hälfte und höchstens 10 % Geiseln, sonst Aufruhr). (3) Greife jedes Jahr einen feindlichen Stamm an (auch mit sofortigem Rückzug): das verhindert den allgemeinen Unmut im Winter. (4) Verbündete (Haltung über 10, Freundschaftsvertrag) sind vor der Jahresunruhe sicher und liefern Hilfstruppen. (5) Eine Legion allein bricht an Riesen; Legionen können nacheinander denselben Stamm angreifen, die Verluste der Gallier bleiben im Jahr bestehen.</p>
+    <p><b>Taktik (aus den Regeln abgeleitet):</b> (1) Große Stämme (über ca. 70 000 Einwohner) zerschlagen jede einzelne Legion; Geld und Diplomatie sind der Weg, ein ganz früher Angriff ist ein Fehler. (2) Kleine Stämme mit Haltung ≤ 3 (Eburonen, Lexovier, Menapier, Osismer) sind ohne Aufruhr zu bezwingen; Kapitulation bringt ½ Bevölkerung in Denaren, Eroberung bis zu 2,3 × Bevölkerung (nimm höchstens die Hälfte und höchstens 10 % Geiseln, sonst Aufruhr). (3) Greife jedes Jahr einen feindlichen Stamm an (auch mit sofortigem Rückzug): das verhindert den allgemeinen Unmut im Winter. (4) Verbündete (Haltung über 10, Freundschaftsvertrag) sind vor der Jahresunruhe sicher und liefern Hilfstruppen. (5) Eine Legion allein bricht an Riesen. Mit „Gemeinsamer Angriff“ kämpfen mehrere Legionen als ein Verband mit der Summe ihrer Stärke; vier Legionen (18 000 Mann) zwingen sogar die Helvetier zur Kapitulation (≈100 000 Denare) bei etwa 3 700 Verlusten. Alternativ rücken Legionen nacheinander nach, die Verluste der Gallier bleiben im Jahr bestehen.</p>
     <p><b>Winter:</b> Fixkosten = ½ Soldaten. Tribute bringen Einkommen. Sind Geld oder Legionen weg, ist das Spiel verloren.</p>`);
 }
 

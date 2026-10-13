@@ -58,6 +58,14 @@ assert.equal(g.legions[1].le, 9000); assert.equal(g.rv, 30000 - 4500 * JC.MERC_C
 g.rv = 10; assert.equal(JC.hireMercenaries(g, 2, 99999), 3);
 const as = JC.assess(JC.createGame(1, seeded(3)), 1, 10, 40); assert.equal(as.defeat, 100);   // Helvetier brechen eine Legion
 
+// --- Verband: Summe der Staerken, Verluste anteilig
+g = JC.createGame(1, seeded(5), { combined: true });
+let vb = JC.beginBattle(g, [1, 2, 3, 4], 10); assert.equal(vb.R, 18000); assert.deepEqual(vb.ys, [1, 2, 3, 4]);
+vb.RO = 17000; vb.GA = vb.G - 100; vb.n = 0; assert.equal(JC.finishBattle(g, vb).lost, 1000);
+assert.equal(g.legions[1].le + g.legions[2].le + g.legions[3].le + g.legions[4].le, 17000); assert.equal(g.legions[2].sl, 1);
+assert.equal(JC.assess(JC.createGame(1, seeded(3)), [1, 2, 3, 4], 10, 40).capitulation, 100);      // 4 Legionen zwingen die Helvetier
+g.rv = 1000; JC.payLegions(g, [1, 2], 1000); assert.equal(g.rv, 0);
+
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {
   const g = JC.createGame(sp, seeded(seed)); let years = 0;

@@ -455,7 +455,7 @@ Straßen, Legionsmarsch mit Zeitkosten, Ton, Mehrspieler im Spielrunde-Stil.
 Beim Spielen des Nachbaus zeigte sich, dass das Original sehr hart ist: Es gibt **keinen direkten Nachschub** (nur Winter-Freiwillige
 bis Moral × 250), und Riesenstämme zerschlagen jede einzelne Legion. Der Nachbau bietet deshalb beim Start die wählbare Komfort-Regel
 **Söldner anwerben** (3 Denare pro Mann, jederzeit, bis 9000 Mann). Außerdem zeigt der Angriffsdialog eine **Lageeinschätzung**
-(Simulation auf einer Kopie des Spielstands), und nach einem abgebrochenen Angriff können **weitere Legionen nachrücken**. Letzteres
+(Simulation auf einer Kopie des Spielstands), und mehrere Legionen können als **Verband** gemeinsam angreifen (Summe der Stärken wie eine Einheit; Verluste, Siege und Sold anteilig). Nach einem abgebrochenen Angriff können außerdem **weitere Legionen nachrücken**. Letzteres
 nutzt nur die Originalmechanik: Die Restkrieger (`VS`/`GA`) heilen innerhalb des Jahres nicht.
 
 Gemessene Eckwerte (✔ per Engine):
@@ -469,7 +469,10 @@ Gemessene Eckwerte (✔ per Engine):
 * Ein Strategie-Bot (`remake/strategy-bot.js`: erobert kleine Stämme, hält die Feindschaft ruhig, verschenkt Geld, verbündet) gewinnt
   **nie**: Er gerät in eine Armutsfalle mit dauerhaft ca. 8 feindlichen Stämmen, deren Winterüberfälle (je Legion bis zu
   Anzahl × 600 Mann) mehr Soldaten kosten, als nachwachsen. Mit Söldnern überlebt er statt 9 im Schnitt 35 Jahre, kommt aber nur auf ca. 12–13
-  befriedete Stämme. Eine bewiesene Gewinnstrategie gibt es also noch nicht; die Taktiktipps im Spiel sind abgeleitete Regelkenntnis.
+  befriedete Stämme. * **Mit Verband-Angriff gewinnbar:** Vier Legionen (18 000 Mann) kippen den Kampf gegen die Helvetier in den günstigen Bereich
+  (`3·RO − GA > 500`): 100 % Kapitulation bei ca. 3 700 eigenen Verlusten und ≈100 000 Denare Auszahlung. Mit Söldnern und Verband-Angriff
+  gewinnt der Bot auf Stufe 1–3 in 198–200 von 200 Spielen (Ø ca. 19–22 Jahre). Strategie: Söldner auf 9000 auffüllen, Verband gegen den
+  größten Gegner, Geld in Gaben/Bündnisse, kleine Stämme einzeln. Ohne Komfort-Regeln (Originalmodus) gewinnt der Bot nie.
 
 ## 10. Offen / nicht untersucht (○)
 

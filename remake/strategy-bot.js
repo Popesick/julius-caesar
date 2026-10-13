@@ -18,10 +18,23 @@ function fight(g, y, x, take) {                          // take: 'peace' | 'con
 }
 
 function play(sp, seed) {
-  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS }); let years = 0; const rnd = g.rnd;
+  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS }); let years = 0; const rnd = g.rnd;
   while (!g.over && years < 40) {
     years++;
     if (MERCS) for (let i = 1; i <= 4; i++) { const want = Math.min(9000 - g.legions[i].le, Math.floor(Math.max(0, g.rv - 25000) / 3 / 4)); JC.hireMercenaries(g, i, want); }
+    // 0) Verband: mit allen Legionen den groessten feindlichen/freien Riesen zur Kapitulation zwingen (Komfort-Regel)
+    if (MERCS) {
+      const ys = [1, 2, 3, 4].filter(i => g.legions[i].le > 2000), tot = ys.reduce((a, i) => a + g.legions[i].le, 0);
+      const giants = g.tribes.filter(t => t && !t.ex && t.vt === 0 && t.be >= SMALL).sort((a, b) => b.be - a.be);
+      const tgt = giants.find(t => tot >= Math.floor(t.be / 5) * 0.42);
+      if (tgt && ys.length) {
+        const b = JC.beginBattle(g, ys, tgt.id); let ev;
+        for (let i = 0; i < 500; i++) { ev = JC.stepBattle(g, b); if (ev.type !== 'round') break; }
+        if (ev.type === 'capitulation') JC.acceptCapitulation(g, b); else if (ev.type === 'conquered') JC.resolveConquest(g, b, Math.floor(ev.maxLoot / 2), Math.floor(g.tribes[tgt.id].be / 10));
+        JC.finishBattle(g, b); JC.payLegions(g, ys, Math.min(g.rv, Math.floor(JC.auxiliaries(g) * 0 + ys.reduce((a, i) => a + g.legions[i].le, 0) * 1.2)));
+        if (MERCS) for (let i = 1; i <= 4; i++) JC.hireMercenaries(g, i, Math.min(9000 - g.legions[i].le, Math.floor(Math.max(0, g.rv - 25000) / 3 / 4)));
+      }
+    }
     // 1) kleine, leichte Staemme erobern (BR<=3 zuerst: kein Aufruhr der Volksgruppe)
     const targets = g.tribes.filter(t => t && !t.ex && t.vt === 0 && t.be < SMALL).sort((a, b) => a.br - b.br || a.be - b.be);
     let used = 0;

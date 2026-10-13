@@ -10,7 +10,7 @@
   // ---------------------------------------------------------------- Start
   function createGame(sp = 1, rnd = Math.random, rules = {}) {
     const g = {
-      sp, rnd, rules: { mercs: false, ...rules }, year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
+      sp, rnd, rules: { mercs: false, combined: false, ...rules }, year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
       kf: 0, lastX: 0, vs: 0, ga: 0,                     // KF: Winterangriff im Vorjahr, VS/GA: laufende Belagerung
       vx: 0, negotiated: [],                             // VX/V(): Verhandlungen dieses Jahres
       tribes: [null], legions: [null], over: null,
@@ -118,7 +118,7 @@
     const t = g.tribes[x];
     if (t.ex) return { ok: false, reason: 'destroyed' };
     if (t.vt > 0) return { ok: false, reason: 'treaty' };
-    if (g.legions[y].le <= 0) return { ok: false, reason: 'empty' };
+    if (![].concat(y).some(i => g.legions[i].le > 0)) return { ok: false, reason: 'empty' };
     return { ok: true };
   }
   function beginBattle(g, y, x) {
@@ -128,8 +128,10 @@
     g.ga = G; g.vs = x; g.lastX = x;
     if (t.br > 3) angerGroup(g, x);                                 // Zeile 700
     t.br = 0; t.vt = 0; t.tr = 0;                                   // Zeile 705: Krieg
-    const R = g.legions[y].le;
-    return { y, x, R, G, GA: G, RO: R, KA: 0, n: 0, loot: 0 };
+    // y: eine Legion oder ein Verband (Array). Ein Verband kaempft mit der Summe der Staerken als eine Einheit.
+    const ys = [].concat(y).filter(i => g.legions[i].le > 0);
+    const les = ys.map(i => g.legions[i].le), R = les.reduce((a, c) => a + c, 0);
+    return { y: ys[0], ys, les, x, R, G, GA: G, RO: R, KA: 0, n: 0, loot: 0 };
   }
   function applyLosses(g, b) { const t = g.tribes[b.x]; t.be = Math.max(0, t.be - (b.G - b.GA)); }  // Zeile 1000 (zaehlt kumulativ, wie im Original)
 
@@ -188,15 +190,22 @@
   }
   // Zeilen 2010-2160: Gefechtsabschluss; Rueckgabe: Summe der eigenen Verluste
   function finishBattle(g, b) {
-    const t = g.tribes[b.x], L = g.legions[b.y];
-    if (b.n === 1) L.mv = Math.max(0, L.mv - 1);
-    else { L.mv = Math.min(9, L.mv + 1); t.rs += 1; L.sl += 1; }
-    t.rk += 1; L.kl += 1;
-    const lost = Math.max(0, b.R - Math.max(0, b.RO));
-    L.le = Math.max(0, L.le - lost);
-    L.at = b.x; L.x = t.x; L.y = t.y;
+    const t = g.tribes[b.x];
+    const total = Math.max(0, b.R - Math.max(0, b.RO));
+    let left = total;
+    b.ys.forEach((y, k) => {
+      const L = g.legions[y];
+      const lost = k === b.ys.length - 1 ? left : Math.min(left, Math.round(total * b.les[k] / b.R));   // Verluste anteilig zur Staerke
+      left -= lost;
+      if (b.n === 1) L.mv = Math.max(0, L.mv - 1);
+      else { L.mv = Math.min(9, L.mv + 1); L.sl += 1; }
+      L.kl += 1; L.le = Math.max(0, L.le - lost);
+      L.at = b.x; L.x = t.x; L.y = t.y;
+    });
+    if (b.n !== 1) t.rs += 1;
+    t.rk += 1;
     checkVictory(g);
-    return { lost };
+    return { lost: total };
   }
   // Zeilen 3790-3880: Sold -> Moral
   function payLegion(g, y, amount) {
@@ -208,8 +217,15 @@
     L.mv = Math.max(0, L.mv);
     return amount;
   }
+  // Sold fuer einen Verband: Betrag anteilig zur Staerke aufgeteilt (die Moral reagiert je Legion auf ihr Verhaeltnis).
+  function payLegions(g, ys, amount) {
+    ys = [].concat(ys); amount = Math.max(0, Math.min(Math.floor(amount), g.rv));
+    const total = ys.reduce((a, i) => a + g.legions[i].le, 0) || 1; let left = amount;
+    ys.forEach((y, k) => { const share = k === ys.length - 1 ? left : Math.round(amount * g.legions[y].le / total); left -= share; payLegion(g, y, share); });
+    return amount;
+  }
   // Legion ohne Kampf verlegen (Zeile 5030)
-  function moveLegion(g, y, x) { const t = g.tribes[x], L = g.legions[y]; L.at = x; L.x = t.x; L.y = t.y; }
+  function moveLegion(g, y, x) { const t = g.tribes[x]; [].concat(y).forEach(i => { const L = g.legions[i]; L.at = x; L.x = t.x; L.y = t.y; }); }
 
   // ---------------------------------------------------------------- Winterlager / Jahresabschluss
   // Teil 1 (Zeilen 3940-4150): Angriffe auf das Winterlager. Teil 2 (4160-4410): Haushalt.
@@ -283,7 +299,7 @@
 
   const API = { createGame, beginYear, nextYear, pacified, checkVictory, attitudeLabel,
     canNegotiate, negotiate, negotiationOptions, attackCheck, beginBattle, stepBattle, retreat,
-    acceptCapitulation, resolveConquest, finishBattle, payLegion, moveLegion,
+    acceptCapitulation, resolveConquest, finishBattle, payLegion, payLegions, moveLegion,
     winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, MERC_COST, MAX_LEGION };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.JC = API;
 })(typeof window !== 'undefined' ? window : globalThis);
