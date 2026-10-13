@@ -157,8 +157,9 @@ g = JC.createGame(1, seeded(12), { rank: true, diplomacy: true }); JC.applyPeace
 g = JC.createGame(1, seeded(13), { rank: true }); JC.addRep(g, 80, 't'); JC.applyPeace(g, 8, JC.peaceOffer(g, 8)); const rr = g.rep, st = g.satisf; g.tribes[8].br = 0; g.tribes[8].vt = 0; JC.syncTreaties(g);
 assert(g.rep < rr && g.satisf < st && JC.rankOf(g).name === 'Zenturio');
 // Spiele
-g = JC.createGame(1, seeded(14), { rank: true }); g.rv = 100000;
-assert(!JC.canHold(g, 'gladiators').ok); assert(JC.canHold(g, 'race').ok); const rc = JC.holdRace(g, 2); assert.equal(g.rv, 97000); assert.equal(g.games.races, 1);
+g = JC.createGame(1, seeded(14), { rank: true }); g.rv = 500000;
+assert(!JC.canHold(g, 'gladiators').ok); assert(JC.canHold(g, 'race').ok); const rc = JC.holdRace(g, 2); assert.equal(g.rv, 500000 - JC.GAME_COST.race); assert.equal(g.games.races, 1);
+assert.deepEqual([JC.GAME_COST.race, JC.GAME_COST.gladiators, JC.GAME_COST.amphitheater], [9000, 18000, 300000]);
 JC.buildAmphitheater(g); assert(g.games.amph && !JC.canHold(g, 'amphitheater').ok && JC.canHold(g, 'gladiators').ok);
 JC.holdRace(g, 1); assert(!JC.canHold(g, 'race').ok);                                                     // max. 2 Spiele pro Jahr (Rennen + Rennen)
 JC.beginYear(g); assert(JC.canHold(g, 'gladiators').ok); JC.startGladiators(g); const gj = JC.judgeGladiators(g, 'mercy'); assert.equal(typeof gj.ok, 'boolean');
@@ -167,6 +168,45 @@ g = JC.createGame(1, seeded(15), { rank: true }); g.satisf = 90; JC.winterRome(g
 g = JC.createGame(1, seeded(15), { rank: true }); g.satisf = 10; JC.winterRome(g); assert.equal(g.legions[1].mv, 3);
 g = JC.createGame(1, seeded(15), { rank: true }); g.satisf = 50; JC.winterRome(g); assert.equal(g.legions[1].mv, 5);
 g = JC.createGame(1, seeded(15)); g.satisf = 99; assert.equal(JC.winterRome(g), null);                  // ohne Regel nichts
+
+// --- Taktische Hexschlachten
+const TAC = require('./tactics.js');
+assert.equal(TAC.dist(0, 0, 0, 0), 0); assert.equal(TAC.nbrs(5, 5).length, 6); assert.equal(TAC.nbrs(0, 0).length, 2);                       // Rand
+for (const [c, r] of TAC.nbrs(7, 4)) assert.equal(TAC.dist(7, 4, c, r), 1); for (const [c, r] of TAC.nbrs(7, 5)) assert.equal(TAC.dist(7, 5, c, r), 1);
+assert.deepEqual(TAC.splitUnits(1200), [500, 500, 200]); assert.deepEqual(TAC.splitUnits(4500), Array(9).fill(500)); assert.equal(TAC.splitUnits(100000).length, 40); // Aufgebot max. 40
+assert.equal(TAC.splitUnits(1050).length, 2); assert.equal(TAC.splitUnits(1100).length, 3); assert(TAC.splitUnits(1030).every(m => m <= 500));                            // kleine Reste werden angehaengt
+assert.deepEqual(TAC.romanComposition(4500, false), { archer: 1, cav: 0, legion: 8 }); assert.equal(TAC.romanComposition(4500, true).cav, 1);       // Anteile Legionaere/Bogenschuetzen/Reiter
+const gc = TAC.gaulComposition(10000, 2, 25); assert.equal(Object.values(gc).reduce((a, b) => a + b, 0), 20); assert(gc.archer + gc.sling > 0 && gc.cav >= 3);   // Aquitaner: viele Schuetzen
+assert(TAC.gaulComposition(10000, 0, 8).sword > TAC.gaulComposition(10000, 2, 25).sword);                                                     // Belger: mehr Schwertkaempfer
+// Gelaende: jeder Stamm individuell, Aufmarschzonen begehbar, Hindernisse verbinden nicht komplett
+const sig = id => TAC.genTerrain(id, 1).map(r => r.join(',')).join('|');
+assert.notEqual(sig(10), sig(8)); assert.notEqual(TAC.genTerrain(10, 1).join(), TAC.genTerrain(10, 2).join()); assert.equal(sig(10), sig(10));
+for (const id of Object.keys(TAC.SITES)) { const gt = TAC.genTerrain(+id, 5); for (let r = 0; r < TAC.ROWS; r++) for (let c = 0; c < TAC.COLS; c++) if (r <= 2 || r >= TAC.ROWS - 3) assert(!TAC.TERR[gt[r][c]].impass, 'Zone ' + id); }
+// Schlacht: Einheiten zu 500 Mann, Aufstellung nur in der Zone, Zugregeln
+let tb = TAC.newBattle({ tribeId: 8, seed: 3, romanMen: 4500, romanMorale: 5, gaulMen: 3500, group: 0, hostile: true });
+assert.equal(tb.units.filter(u => u.side === 'R').length, 9); assert.equal(tb.units.filter(u => u.side === 'G').length, 7); assert(tb.units.every(u => u.men <= 500));
+assert.equal(tb.units.filter(u => u.side === 'R').reduce((a, u) => a + u.men, 0), 4500);
+const ru = tb.units.find(u => u.side === 'R'); assert(!TAC.place(tb, ru, 3, 2));  assert(TAC.place(tb, ru, 3, TAC.ROWS - 1) || TAC.ground(tb, 3, TAC.ROWS - 1).impass === false);   // nur untere drei Reihen
+assert(!TAC.startFight(tb)); TAC.autoDeploy(tb, 'R'); TAC.autoDeploy(tb, 'G'); assert(TAC.startFight(tb)); assert.equal(tb.phase, 'fight');
+assert(tb.units.every(u => TAC.zone(u.side, u.row))); assert.equal(new Set(tb.units.map(u => u.col + ',' + u.row)).size, tb.units.length);        // keine Doppelbelegung
+// Moral: stark verwundete Einheit flieht
+const v = tb.units.find(u => u.side === 'G'); v.morale = 5; TAC.attack(tb, tb.units.find(u => u.side === 'R'), v, 'melee'); assert(v.routed || v.gone || v.men > 0);
+// Vollautomatisch, 80 Schlachten: Invarianten
+let rw = 0, gw = 0; for (let i = 1; i <= 80; i++) { const bs = TAC.newBattle({ tribeId: 1 + (i % 30), seed: i, romanMen: 4500, romanMorale: 5, gaulMen: 4500, group: i % 4, hostile: false }); const r = TAC.autoPlay(bs);
+  assert(bs.over && r.turns <= TAC.MAX_TURNS + 1); assert(r.rKilled <= 4500 && r.gKilled <= 4500 && r.rFled <= 4500);
+  for (const u of bs.units) { assert(u.men >= 0 && u.men <= 500 && u.killed >= 0); } if (r.winner === 'R') rw++; else if (r.winner === 'G') gw++; }
+assert(rw > gw * 2, 'Roemer sollten bei gleicher Zahl klar vorn liegen: ' + rw + ':' + gw);
+// Roemische Uebermacht-Gallier: Gallier mit 2,5-facher Zahl gewinnen meist
+let g25 = 0; for (let i = 1; i <= 40; i++) { const r = TAC.autoPlay(TAC.newBattle({ tribeId: 19, seed: i, romanMen: 4500, romanMorale: 5, gaulMen: 11000, group: 1, hostile: false })); if (r.winner === 'G') g25++; } assert(g25 > 25, 'Gallier 2,4:1 ' + g25);
+// Bruecke: Ergebnis -> Kampagne
+g = JC.createGame(1, seeded(20), { tactics: true, map: false }); let tbt = JC.beginBattle(g, [1, 2, 3, 4], 8);
+let ev2 = JC.applyTactical(g, tbt, { rKilled: 1000, rFled: 500, gKilled: 2000, gFled: 1000, winner: 'R' });
+assert.equal(tbt.RO, 18000 - (1000 + 200)); assert.equal(tbt.GA, tbt.G - (2000 + 700)); assert.equal(ev2.type, 'capitulation'); assert.equal(tbt.n, 0);
+g = JC.createGame(1, seeded(20), { tactics: true }); tbt = JC.beginBattle(g, [1], 8); ev2 = JC.applyTactical(g, tbt, { rKilled: 3000, rFled: 0, gKilled: 100, gFled: 0, winner: 'G' }); assert.equal(tbt.n, 1); assert(['flee', 'lost'].includes(ev2.type));
+g = JC.createGame(1, seeded(20), { tactics: true }); tbt = JC.beginBattle(g, [1, 2, 3, 4], 8); ev2 = JC.applyTactical(g, tbt, { rKilled: 300, rFled: 0, gKilled: tbt.G, gFled: 0, winner: 'R' }); assert.equal(ev2.type, 'conquered');
+g = JC.createGame(1, seeded(20), { tactics: true }); tbt = JC.beginBattle(g, [1], 8); assert.equal(JC.applyTactical(g, tbt, { rKilled: 100, rFled: 0, gKilled: 100, gFled: 0, winner: null }).type, 'retreat');
+g = JC.createGame(1, seeded(20), { tactics: true, rank: true }); tbt = JC.beginBattle(g, [1, 2], 10); const to = JC.tacticalOpts(g, tbt); assert.equal(to.romanMen, 9000); assert.equal(to.cavalry, false); assert.equal(to.hostile, true); assert.equal(to.group, 1);
+g.rankIdx = 2; assert.equal(JC.tacticalOpts(g, tbt).cavalry, true);                                                                              // Kavallerie ab Tribun
 
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {

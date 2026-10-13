@@ -78,6 +78,22 @@
   .bar.green i { background: var(--peace); }
   .team { display: flex; gap: 8px; }
   .team button { flex: 1; padding: 14px 6px; font-weight: 600; }
+  .tacwrap { width: min(1320px, 100%); margin: 0 auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .tacbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+  .tacbar b { font-size: 17px; color: var(--gold); } .tacbar .grow { flex: 1; }
+  .tacmain { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 10px; align-items: start; }
+  .tacboard { background: #14202a; border: 1px solid var(--line); border-radius: 12px; padding: 6px; }
+  #tacSvg { width: 100%; height: auto; display: block; touch-action: manipulation; }
+  .tacside { display: flex; flex-direction: column; gap: 10px; }
+  .tacside .panel { padding: 10px 12px; font-size: 13.5px; }
+  .tacside h4 { margin: 0 0 6px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .tacside ol { margin: 0; padding-left: 18px; max-height: 190px; overflow: auto; color: var(--mute); font-size: 12.5px; }
+  .tray { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tray button { padding: 6px 10px; font-size: 13px; } .tray button.on { border-color: var(--gold); background: #3a2f1c; }
+  .mbar { height: 6px; background: #15110e; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); margin: 3px 0 6px; } .mbar i { display: block; height: 100%; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.4); }
+  .hx { cursor: pointer; } .hx:hover { fill: rgba(255,255,255,.12); }
+  @media (max-width: 900px) { .tacmain { grid-template-columns: 1fr; } }
   .legions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .lg { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; font-size: 13px; }
   .lg b { color: var(--gold); }
@@ -167,7 +183,7 @@
     </div>
   </div>
   <aside>
-    <section class="card banner"><img src="assets/caesar.jpg?v=20261013d" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
+    <section class="card banner"><img src="assets/caesar.jpg?v=20261013e" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
     <section class="card" id="rankCard" hidden></section>
     <section class="card" id="tribeCard"></section>
     <section class="card"><h2>Legionen</h2><div class="legions" id="legions"></div>
@@ -176,7 +192,7 @@
   </aside>
 </main>
 <div id="title" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013d)"></div><div class="scrfade"></div>
+  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013e)"></div><div class="scrfade"></div>
   <div class="titlebox">
     <div class="kicker">Gallien · 58 – 50 v. Chr.</div>
     <h1>JULIUS CAESAR</h1>
@@ -190,7 +206,7 @@
   </div>
 </div>
 <div id="setup" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013d); opacity:.22"></div>
+  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013e); opacity:.22"></div>
   <div class="setupbox">
     <div><h2>Feldzug vorbereiten</h2><p class="lead">Wähle Schwierigkeitsgrad und Spielmodus. Danach beginnt dein Statthalteramt in der Provinz.</p></div>
     <div class="cols">
@@ -203,13 +219,25 @@
     <div class="setupbtns"><button id="sBack" class="bigbtn">Zurück</button><button id="sGo" class="bigbtn primary">Feldzug beginnen</button></div>
   </div>
 </div>
+<div id="tactic" class="screen" hidden>
+  <div class="tacwrap">
+    <div class="tacbar"><b id="tacTitle"></b><span id="tacStatus" class="hint"></span><span class="grow"></span>
+      <button id="tacAutoDep">Automatisch aufstellen</button><button id="tacClear">Alle abziehen</button><button id="tacGo" class="primary">Schlacht beginnen</button>
+      <button id="tacEnd" class="primary">Zug beenden</button><button id="tacAuto">Auto-Kampf</button><button id="tacRet" class="danger">Rückzug</button></div>
+    <div class="tacmain">
+      <div class="tacboard"><svg id="tacSvg" viewBox="0 0 580 385" role="img" aria-label="Schlachtfeld mit Hexfeldern"></svg></div>
+      <div class="tacside"><div class="panel" id="tacInfo"></div><div class="panel" id="tacTray"></div><div class="panel"><h4>Schlachtbericht</h4><ol id="tacLog" reversed></ol></div></div>
+    </div>
+  </div>
+</div>
 <div id="errbar" hidden style="position:fixed;left:0;right:0;bottom:0;z-index:99;background:#7a2a22;color:#fff;padding:10px 16px;font-size:14px"></div>
 <dialog id="dlg"></dialog>
 
-<script src="data.js?v=20261013d"></script>
-<script src="engine.js?v=20261013d"></script>
-<script src="music.js?v=20261013d"></script>
-<script src="map.js?v=20261013d"></script>
+<script src="data.js?v=20261013e"></script>
+<script src="engine.js?v=20261013e"></script>
+<script src="music.js?v=20261013e"></script>
+<script src="map.js?v=20261013e"></script>
+<script src="tactics.js?v=20261013e"></script>
 <script>
 'use strict';
 window.addEventListener('error', e => { const b = document.getElementById('errbar'); if (b) { b.hidden = false; b.textContent = 'Fehler: ' + e.message + ' – bitte die Seite mit Strg+F5 (Cache leeren) neu laden. Besteht das Problem weiter, bitte melden.'; } });
@@ -229,7 +257,7 @@ const SP_TEXT = {
 /* ---------- Dialoge ---------- */
 const dlg = $('#dlg');
 dlg.addEventListener('cancel', e => e.preventDefault());
-const VER = '20261013d';
+const VER = '20261013e';
 const pic = (n, cls = '') => n ? `<img class="pic ${cls}" src="assets/${n}.jpg?v=${VER}" alt="" onerror="this.remove()">` : '';
 function ask({ title, html = '', img = '', buttons = [{ label: 'Weiter', value: true, cls: 'primary' }], mount }) {
   return new Promise(res => {
@@ -509,11 +537,12 @@ async function sendLegion(ysIn, x) {
       html: `<dl><dt>Bevölkerung</dt><dd>${nf(t.be)}</dd><dt>Krieger${G.vs === x ? ' (Belagerung läuft)' : ''}</dt><dd>${nf(G.vs === x ? G.ga : t.be / 5)}</dd><dt>${ys.length > 1 ? 'Eigener Verband' : 'Eigene Legion'}</dt><dd>${nf(total)} Mann</dd></dl>
         <p class="hint"><b>Lageeinschätzung der Offiziere</b> (${ys.length > 1 ? 'Verband' : 'eine Legion allein'}): Kapitulation ${as.capitulation} % · Eroberung ${as.conquered} % · Niederlage ${as.defeat} % — erwartete Verluste ${nf(as.loss)} Mann, Feindverluste ${nf(as.theirLoss)}.${as.defeat > 60 ? ` <span class="bad">${ys.length > 1 ? 'Dieser Verband' : 'Diese Legion allein'} wird zerschellen.${G.rules && G.rules.combined && ys.length < 4 ? ' Ein gemeinsamer Angriff mit mehr Legionen verbessert die Lage stark.' : ''}</span>` : ''}</p>
         ${t.br > 3 ? `<p class="hint">Achtung: Der Angriff auf einen Stamm, der Rom nicht feindlich gesinnt ist, erzürnt seine Volksgruppe (${GROUPS[t.group]}).</p>` : ''}`,
-      buttons: [{ label: 'Weiterziehen', value: 'move' }, ...(G.rules && G.rules.diplomacy && t.vt === 0 ? [{ label: `Ultimatum (${Math.round(JC.ultimatumChance(G, ys, x) * 100)} %)`, value: 'ultimatum' }] : []), { label: 'Angreifen', value: 'attack', cls: 'danger' }],
+      buttons: [{ label: 'Weiterziehen', value: 'move' }, ...(G.rules && G.rules.diplomacy && t.vt === 0 ? [{ label: `Ultimatum (${Math.round(JC.ultimatumChance(G, ys, x) * 100)} %)`, value: 'ultimatum' }] : []), ...(G.rules && G.rules.tactics ? [{ label: 'Schnell auflösen', value: 'attack' }, { label: 'Schlacht auf dem Feld', value: 'tactical', cls: 'danger' }] : [{ label: 'Angreifen', value: 'attack', cls: 'danger' }])],
     });
     if (act === 'ultimatum') { await ultimatumResolve(ys, x); return; }
     if (act === 'move') { JC.moveLegion(G, ys, x); G.vs = 0; log(`${ROMANS(ys)} bei den ${t.name}`); return; }
-    let res = await battle(ys, x);
+    const bmode = act === 'tactical' ? 'tactical' : 'quick';
+    let res = await battle(ys, x, bmode);
     const used = new Set(ys);
     while (res === 'cont' && G.over !== 'win' && G.tribes[x].vt === 0 && !G.tribes[x].ex) {
       const rest = [1, 2, 3, 4].filter(i => !used.has(i) && G.legions[i].le > 0 && JC.canAct(G, i));
@@ -523,15 +552,152 @@ async function sendLegion(ysIn, x) {
         buttons: [{ label: 'Abbrechen', value: 0 }, ...rest.map(i => ({ label: `${ROMAN[i]}. Legion (${nf(G.legions[i].le)})`, value: i, cls: 'primary' }))] });
       if (!pick) break;
       used.add(pick); actLegion = pick; renderAll();
-      res = await battle(pick, x);
+      res = await battle(pick, x, bmode);
     }
   } finally { await flushEvents(); busy = false; renderAll(); if (G.over !== 'win') Music.play('map'); }
 }
 
-async function battle(ysIn, x) {
+
+/* ---------- Taktische Schlacht auf Hexfeldern ---------- */
+const TCOL = { R: '#b3342b', G: '#1f7a74' }, TGLYPH = { forest: '♣', hill: '⌒', marsh: '≈', ford: '≈', palisade: '‖', rock: '▲', water: '~' };
+function tacticalBattle(b, x) {
+  return new Promise(resolve => {
+    const T = G.tribes[x], S = TAC.newBattle(JC.tacticalOpts(G, b)); TAC.autoDeploy(S, 'G');
+    const svg = $('#tacSvg'), SZ = 20, W = Math.sqrt(3) * SZ, cx = (c, r) => W * (c + 0.5 * (r & 1)) + W / 2, cy = r => SZ + 1.5 * SZ * r;
+    const hexPts = (c, r) => [0, 1, 2, 3, 4, 5].map(k => { const a = Math.PI / 180 * (60 * k - 30); return (cx(c, r) + SZ * Math.cos(a)).toFixed(1) + ',' + (cy(r) + SZ * Math.sin(a)).toFixed(1); }).join(' ');
+    let selType = null, sel = null, aiBusy = false, hoverU = null, finished = false, lastActor = null;
+    const U = TAC.UT, rest = side => S.units.filter(u => u.side === side && !u.gone && u.men > 0);
+    $('#tacTitle').textContent = `Schlacht bei ${S.siteName} · ${T.name}`;
+    showScreen('tactic'); Music.play('battle');
+
+    const menCount = side => rest(side).reduce((a, u) => a + u.men, 0);
+    const mcolor = m => m > 60 ? '#7ad37a' : m > 35 ? '#e0c24a' : '#e0554a';
+    function calc() {
+      const out = { move: new Set(), melee: new Map(), targets: new Set(), approach: new Set() };
+      if (!sel || S.phase !== 'fight' || sel.acted || sel.routed || sel.gone) return out;
+      if (sel.moved === 0) {
+        const R = TAC.reach(S, sel);
+        for (const [k, cost] of R.best) if (cost > 0) out.move.add(k);
+        for (const [k] of R.best) { const c = k % TAC.COLS, r = Math.floor(k / TAC.COLS);
+          for (const [a, bb] of TAC.nbrs(c, r)) { const o = TAC.unitAt(S, a, bb); if (o && o.side === 'G' && !o.gone) out.approach.add(o.id); } }
+      }
+      for (const { t } of TAC.targetsFrom(S, sel, sel.col, sel.row, sel.moved)) out.targets.add(t.id);
+      return out;
+    }
+    function render() {
+      const cc = calc(); svg.innerHTML = '';
+      const add = (tag, at, par) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); (par || svg).append(e); return e; };
+      for (let r = 0; r < S.rows; r++) for (let c = 0; c < S.cols; c++) {
+        const tk = S.terrain[r][c], T0 = TAC.TERR[tk]; add('polygon', { points: hexPts(c, r), fill: T0.color, stroke: 'rgba(0,0,0,.35)', 'stroke-width': .8 });
+        if (TGLYPH[tk]) { const g = add('text', { x: cx(c, r), y: cy(r) + 5, 'text-anchor': 'middle', 'font-size': 14, fill: 'rgba(0,0,0,.33)', 'pointer-events': 'none' }); g.textContent = TGLYPH[tk]; }
+        if (S.phase === 'deploy' && TAC.zone('R', r)) add('polygon', { points: hexPts(c, r), fill: 'rgba(210,60,50,.13)', stroke: 'rgba(240,120,110,.5)', 'stroke-width': 1, 'stroke-dasharray': '3 3', 'pointer-events': 'none' });
+        if (S.phase === 'deploy' && TAC.zone('G', r)) add('polygon', { points: hexPts(c, r), fill: 'rgba(40,160,150,.10)', 'pointer-events': 'none' });
+        if (cc.move.has(TAC.key(c, r))) add('polygon', { points: hexPts(c, r), fill: 'rgba(130,200,255,.38)', stroke: '#8fd0ff', 'stroke-width': 1.3, 'pointer-events': 'none' });
+      }
+      for (const u of S.units) { if (u.gone || u.men <= 0 || u.col < 0) continue;
+        const X = cx(u.col, u.row), Y = cy(u.row), g = add('g', { opacity: u.routed ? 0.55 : (u.acted && S.phase === 'fight' && u.side === 'R' ? 0.72 : 1), 'pointer-events': 'none' });
+        const isT = cc.targets.has(u.id), isA = cc.approach.has(u.id);
+        if (isT || isA) add('circle', { cx: X, cy: Y, r: 17, fill: isT ? 'rgba(255,70,60,.3)' : 'rgba(255,190,60,.22)', stroke: isT ? '#ff5a4a' : '#ffbe3c', 'stroke-width': 2.2 }, g);
+        add('circle', { cx: X, cy: Y, r: 13.5, fill: TCOL[u.side], stroke: mcolor(u.morale), 'stroke-width': 2.6, 'stroke-dasharray': u.routed ? '3 2' : '' }, g);
+        if (u === sel) add('circle', { cx: X, cy: Y, r: 17, fill: 'none', stroke: '#fff', 'stroke-width': 2.2 }, g);
+        const l = add('text', { x: X, y: Y - 1, 'text-anchor': 'middle', 'font-size': u.type === 'sling' ? 9 : 12, 'font-weight': 700, fill: '#fff' }, g); l.textContent = U[u.type].ab;
+        const m = add('text', { x: X, y: Y + 9, 'text-anchor': 'middle', 'font-size': 7.5, fill: 'rgba(255,255,255,.92)' }, g); m.textContent = u.routed ? 'flieht' : u.men;
+      }
+      for (let r = 0; r < S.rows; r++) for (let c = 0; c < S.cols; c++) { const h = add('polygon', { points: hexPts(c, r), class: 'hx', fill: 'transparent' }); h.addEventListener('click', () => onHex(c, r)); h.addEventListener('mouseenter', () => { hoverU = TAC.unitAt(S, c, r) || null; info(); }); }
+      info(); tray(); bar();
+    }
+    function terrainInfo(c, r) { const t = TAC.ground(S, c, r); return `${t.name} (Verteidigung ×${t.def}${t.impass ? ', unpassierbar' : ''}${t.mv > 1 && !t.impass ? ', Bewegung ' + t.mv : ''})`; }
+    function unitCard(u) {
+      const D = U[u.type], t = TAC.ground(S, u.col, u.row);
+      return `<b>${u.side === 'R' ? 'Römer' : T.name}: ${D.name}</b> · ${u.men}/${u.max} Mann<div class="mbar"><i style="width:${Math.max(0, u.morale)}%;background:${mcolor(u.morale)}"></i></div>
+        <div class="hint">Moral ${Math.round(u.morale)}% · Gelände: ${t.name}${u.routed ? ' · <span class="bad">auf der Flucht</span>' : ''}${u.acted && S.phase === 'fight' ? ' · bereits gehandelt' : ''}</div><div class="hint" style="margin-top:4px">${D.desc}</div>`;
+    }
+    function info() {
+      const el = $('#tacInfo'); let h = `<h4>Einheit</h4>`;
+      const u = sel || hoverU;
+      if (u && !u.gone && u.men > 0) { h += unitCard(u);
+        if (sel && hoverU && hoverU.side === 'G' && !sel.acted && S.phase === 'fight') { const tg = TAC.targetsFrom(S, sel, sel.col, sel.row, sel.moved).find(o => o.t === hoverU);
+          if (tg) { const e = TAC.expected(S, sel, hoverU, tg.kind, sel.moved, [sel.col, sel.row]); h += `<p style="margin:6px 0 0"><b>${tg.kind === 'shoot' ? 'Beschuss' : 'Nahkampf'}:</b> erwartet −${Math.round(e.kills)} Gegner${e.ret ? ', −' + Math.round(e.ret) + ' eigene' : ''}</p>`; } else h += `<p class="hint" style="margin:6px 0 0">Klick auf den Gegner: Einheit rückt heran und greift an (falls erreichbar).</p>`; } }
+      else h += `<p class="hint">Fahre über eine Einheit oder wähle eine eigene aus. ${S.phase === 'fight' ? 'Klick auf ein blaues Feld bewegt, Klick auf einen Gegner greift an.' : ''}</p>`;
+      h += `<h4 style="margin-top:10px">Heere</h4><div class="hint">Römer: ${rest('R').length} Einheiten (${menCount('R')} Mann) · Gallier: ${rest('G').length} Einheiten (${menCount('G')} Mann)</div>`;
+      const comp = {}; for (const q of S.units.filter(q => q.side === 'G')) comp[U[q.type].name] = (comp[U[q.type].name] || 0) + 1;
+      h += `<div class="hint">Gegner: ${Object.entries(comp).map(([k, v]) => v + ' ' + k).join(', ')}</div>`;
+      h += `<div class="hint" style="margin-top:6px">${Object.entries(TAC.TERR).filter(([k]) => k !== 'ford' || true).map(([k, v]) => `<span style="margin-right:8px;white-space:nowrap"><span class="sw" style="background:${v.color}"></span>${v.name}</span>`).join('')}</div>`;
+      el.innerHTML = h;
+    }
+    function tray() {
+      const el = $('#tacTray'); if (S.phase !== 'deploy') { el.hidden = true; return; } el.hidden = false;
+      const un = S.units.filter(q => q.side === 'R' && !q.placed), types = [...new Set(S.units.filter(q => q.side === 'R').map(q => q.type))];
+      el.innerHTML = `<h4>Aufmarsch</h4><div class="hint" style="margin-bottom:6px">${S.units.filter(q => q.side === 'R' && q.placed).length} von ${S.startUnits.R} Einheiten stehen. Wähle einen Typ und klicke ein Feld in den unteren drei Reihen. Klick auf eine aufgestellte Einheit nimmt sie zurück.</div>
+        <div class="tray">${types.map(k => { const n = un.filter(q => q.type === k).length; return `<button data-ty="${k}" class="${selType === k ? 'on' : ''}" ${n ? '' : 'disabled'}>${U[k].name} ×${n}</button>`; }).join('')}</div>
+        <div class="hint" style="margin-top:6px">Jede Einheit steht für 500 Mann. Legionäre tragen die Linie, Bogenschützen gehören dahinter, Reiter an die Flügel.</div>`;
+      el.querySelectorAll('[data-ty]').forEach(bn => bn.onclick = () => { selType = bn.dataset.ty; tray(); });
+    }
+    function bar() {
+      const dep = S.phase === 'deploy', mine = S.phase === 'fight' && S.side === 'R' && !aiBusy && !S.over;
+      for (const id of ['tacAutoDep', 'tacClear', 'tacGo']) $('#' + id).hidden = !dep;
+      for (const id of ['tacEnd', 'tacAuto', 'tacRet']) $('#' + id).hidden = dep; $('#tacEnd').disabled = !mine; $('#tacAuto').disabled = aiBusy; $('#tacRet').disabled = aiBusy;
+      $('#tacGo').disabled = !TAC.allPlaced(S, 'R');
+      $('#tacStatus').textContent = dep ? `Aufmarsch – ${S.units.filter(q => q.side === 'R' && q.placed).length}/${S.startUnits.R} aufgestellt` : `Zug ${Math.min(S.turn, S.maxTurns)}/${S.maxTurns} – ${S.over ? 'Schlacht beendet' : S.side === 'R' ? 'Dein Zug' : 'Gegner am Zug'}`;
+      $('#tacLog').innerHTML = S.log.slice(-12).map(l => `<li>${l.text}</li>`).reverse().join('');
+    }
+    async function finish() {
+      if (finished) return; finished = true; render();
+      const r = TAC.result(S), win = r.winner === 'R';
+      await note(win ? 'Die Schlacht ist gewonnen' : r.retreat ? 'Rückzug' : r.winner === 'G' ? 'Die Schlacht ist verloren' : 'Unentschieden',
+        `<p>${S.siteName}: ${r.retreat ? 'Du hast den Rückzug befohlen.' : win ? 'Das gallische Heer ist gebrochen.' : r.winner === 'G' ? 'Dein Heer ist gebrochen.' : 'Beide Heere ziehen sich nach ' + r.turns + ' Zügen erschöpft zurück.'}</p>
+         <dl><dt>Römer gefallen</dt><dd>${nf(r.rKilled)}</dd><dt>Römer geflohen</dt><dd>${nf(r.rFled)}</dd><dt>Gallier gefallen</dt><dd>${nf(r.gKilled)}</dd><dt>Gallier geflohen</dt><dd>${nf(r.gFled)}</dd></dl>`, 'Weiter', win ? 'sieg' : 'reiter');
+      $('#tactic').hidden = true; resolve(r);
+    }
+    function after() { if (S.over) finish(); else render(); }
+    function onHex(c, r) {
+      if (finished || aiBusy) return; const u = TAC.unitAt(S, c, r);
+      if (S.phase === 'deploy') {
+        if (u && u.side === 'R') { TAC.pickUp(S, u); selType = u.type; }
+        else if (!u && selType) { const nx = S.units.find(q => q.side === 'R' && !q.placed && q.type === selType); if (nx) TAC.place(S, nx, c, r); if (!S.units.some(q => q.side === 'R' && !q.placed && q.type === selType)) selType = null; }
+        return render();
+      }
+      if (S.side !== 'R' || S.over) return;
+      if (u && u.side === 'R') { sel = (!u.acted && !u.routed && u !== sel) ? u : null; return render(); }
+      if (!sel || sel.acted) { if (u) { sel = null; hoverU = u; } return render(); }
+      if (u && u.side === 'G') {
+        let opt = TAC.targetsFrom(S, sel, sel.col, sel.row, sel.moved).find(o => o.t === u);
+        if (!opt && sel.moved === 0) {                                    // heranruecken und angreifen
+          const R = TAC.reach(S, sel); let best = null;
+          for (const [k, cost] of R.best) { const hc = k % TAC.COLS, hr = Math.floor(k / TAC.COLS); if (TAC.unitAt(S, hc, hr) && !(hc === sel.col && hr === sel.row)) continue;
+            const d = TAC.dist(hc, hr, u.col, u.row), ok = d === 1 || (U[sel.type].shoot > 0 && d >= 2 && d <= U[sel.type].rng && cost <= 1);
+            if (ok) { const sc = -cost + TAC.ground(S, hc, hr).def * 2 + (d > 1 ? 1 : 0); if (!best || sc > best.sc) best = { sc, hc, hr }; } }
+          if (best) { TAC.moveUnit(S, sel, best.hc, best.hr); opt = TAC.targetsFrom(S, sel, sel.col, sel.row, sel.moved).find(o => o.t === u); }
+        }
+        if (opt) { TAC.attack(S, sel, u, opt.kind); sel = null; return after(); }
+        return render();
+      }
+      if (!u && sel.moved === 0) { if (TAC.moveUnit(S, sel, c, r)) { const rest0 = TAC.targetsFrom(S, sel, sel.col, sel.row, sel.moved); if (!rest0.length) { sel.acted = false; } } }
+      render();
+    }
+    async function enemyTurn() {
+      aiBusy = true; sel = null; render();
+      let guard = 0, u;
+      while (!S.over && (u = TAC.aiNext(S, 'G')) && guard++ < 80) { lastActor = u; render(); await new Promise(r => setTimeout(r, 170)); }
+      if (!S.over) TAC.endSide(S);
+      aiBusy = false; sel = null; after();
+    }
+    $('#tacAutoDep').onclick = () => { for (const q of S.units) if (q.side === 'R') TAC.pickUp(S, q); TAC.autoDeploy(S, 'R'); selType = null; render(); };
+    $('#tacClear').onclick = () => { for (const q of S.units) if (q.side === 'R') TAC.pickUp(S, q); render(); };
+    $('#tacGo').onclick = () => { if (TAC.startFight(S)) { note_('Die Schlacht beginnt'); render(); } };
+    const note_ = t => { S.log.push({ turn: 1, side: 'R', text: t }); };
+    $('#tacEnd').onclick = async () => { if (S.over || S.side !== 'R' || aiBusy) return; TAC.endSide(S); if (S.over) return after(); await enemyTurn(); };
+    $('#tacAuto').onclick = () => { if (aiBusy || S.over) return; aiBusy = true; TAC.autoPlay(S); aiBusy = false; sel = null; finish(); };
+    $('#tacRet').onclick = async () => { if (aiBusy || S.over) return; const ok = await ask({ title: 'Rückzug befehlen?', html: '<p>Das Heer löst sich vom Feind. Es gibt Verluste, und die Gallier gewinnen die Schlacht.</p>', buttons: [{ label: 'Weiterkämpfen', value: false }, { label: 'Rückzug', value: true, cls: 'danger' }] }); if (ok) { TAC.retreatAll(S); finish(); } };
+    render();
+  });
+}
+
+async function battle(ysIn, x, mode = 'quick') {
   const t = G.tribes[x]; Music.play('battle');
   const b = JC.beginBattle(G, ysIn, x), ys = b.ys, y = b.y;
-  let wantRetreat = false, ev;
+  let wantRetreat = false, ev, tev = null;
+  if (mode === 'tactical') { const res = await tacticalBattle(b, x); tev = JC.applyTactical(G, b, res); }
   dlg.innerHTML = `<div class="dlg">${pic('standarten')}<h2>Römisches Reich gegen ${t.name}</h2><div class="vs"><div><div class="nm">Rom</div><div class="n" id="bR"></div>${bar(1, 1)}</div><div>⚔</div><div><div class="nm">${t.name}</div><div class="n" id="bG"></div>${bar(1, 1, 'red')}</div></div>
     <p class="hint" id="bMsg">Die Schlacht tobt …</p><div class="btns"><button id="bRet" class="danger">Rückzug</button></div></div>`;
   if (!dlg.open) dlg.showModal();
@@ -543,10 +709,13 @@ async function battle(ysIn, x) {
   };
   show();
   for (;;) {
-    await new Promise(r => setTimeout(r, 110));
-    if (wantRetreat) { ev = JC.retreat(G, b); break; }
-    ev = JC.stepBattle(G, b); show();
-    if (ev.type === 'round') continue;
+    if (tev) { ev = tev; tev = null; }
+    else {
+      await new Promise(r => setTimeout(r, 110));
+      if (wantRetreat) { ev = JC.retreat(G, b); break; }
+      ev = JC.stepBattle(G, b); show();
+      if (ev.type === 'round') continue;
+    }
     if (ev.type === 'capitulation') {
       const ans = await ask({
         title: 'Kapitulationsangebot', img: 'standarten',
@@ -674,6 +843,7 @@ const FEATURES = [
   ['slaves', 'Geiseln als Freiwillige', '5 % der Geiseln dienen 5 Jahre in den Legionen.'],
   ['once', 'Ein Einsatz pro Legion und Jahr', 'Jede Legion kann pro Jahr nur einmal marschieren oder angreifen.'],
   ['econ', 'Ausgewogene Finanzen', 'Provinzsteuer 8.000 Denare/Jahr, Sold nur 40 % des Originals.'],
+  ['tactics', 'Taktische Schlachten', 'Schlachten manuell auf Hexfeldern: Aufmarsch, Gelände, Einheiten zu 500 Mann, Moral und Flucht.'],
   ['rank', 'Ränge und Ansehen', 'Start als Offizier: Legionen höchstens 4.500 Mann; mit dem Rang wachsen sie bis 9.000. Spiele für das Volk, Zufriedenheit Roms hebt die Moral.'],
 ];
 const SP_NAMES = ['', 'Gemäßigt', 'Herausfordernd', 'Hart', 'Sehr hart', 'Gnadenlos'];
@@ -725,6 +895,7 @@ function help() {
     <p><b>Taktik (aus den Regeln abgeleitet):</b> (1) Große Stämme (über ca. 70 000 Einwohner) zerschlagen jede einzelne Legion; Geld und Diplomatie sind der Weg, ein ganz früher Angriff ist ein Fehler. (2) Kleine Stämme mit Haltung ≤ 3 (Eburonen, Lexovier, Menapier, Osismer) sind ohne Aufruhr zu bezwingen; Kapitulation bringt ½ Bevölkerung in Denaren, Eroberung bis zu 2,3 × Bevölkerung (nimm höchstens die Hälfte und höchstens 10 % Geiseln, sonst Aufruhr). (3) Greife jedes Jahr einen feindlichen Stamm an (auch mit sofortigem Rückzug): das verhindert den allgemeinen Unmut im Winter. (4) Verbündete (Haltung über 10, Freundschaftsvertrag) sind vor der Jahresunruhe sicher und liefern Hilfstruppen. (5) Eine Legion allein bricht an Riesen. Mit „Gemeinsamer Angriff“ kämpfen mehrere Legionen als ein Verband mit der Summe ihrer Stärke; vier Legionen (18 000 Mann) zwingen sogar die Helvetier zur Kapitulation (≈100 000 Denare) bei etwa 3 700 Verlusten. Alternativ rücken Legionen nacheinander nach, die Verluste der Gallier bleiben im Jahr bestehen.</p>
     <p><b>Karte (erweiterte Regeln):</b> Die 30 Stämme liegen an ihrer historischen Stelle. Angreifen, Verhandeln und Marschieren geht nur bei Stämmen in Reichweite: Nachbarn der Provinz oder eines befriedeten Stammes. Kämpfende (feindliche) Stämme stecken ihre unbefriedeten Nachbarn mit Unruhe an – Unruheherde im Norden und Westen musst du dir Schritt für Schritt erarbeiten. Winterüberfälle kommen nur von feindlichen Stämmen in Reichweite.</p>
     <p><b>Diplomatie (erweiterte Regeln):</b> Friedensbedingungen wählen (mehr Tribut, Geiseln, Entschädigung oder mild). Sondierungsgespräche sind kostenlos, aber unsicher. Ein Ultimatum lässt Stämme bei großer Übermacht einknicken (Erfolg erspart den Kampf, Misserfolg bedeutet Krieg). Nach einem Friedensvertrag kann man zusätzliche Geiseln fordern.</p>
+    <p><b>Taktische Schlachten (erweiterte Regeln):</b> Im Angriffsdialog wählst du „Schlacht auf dem Feld“ oder „Schnell auflösen“. Auf dem Feld stellst du dein Heer im Aufmarschgebiet (untere drei Reihen) selbst auf, dann ziehen beide Seiten abwechselnd. Jede Einheit steht für 500 Mann; Römer: Legionäre (Pilum-Infanterie, 75–88 %), Bogenschützen (12 %), ab Tribun Reiter (10 %). Gallier kämpfen nach ihrer Volksgruppe mit Lanzenträgern, Schwertkämpfern, Schleudern/Bogen und Reitern, aber ohne feste Struktur (schwächere Moral und Kampfkraft, keine Formationsboni). Gelände: Wald und Hügel schützen, Sumpf und Furten hemmen, Wasser und Fels sperren; jedes Schlachtfeld ist an die Landschaft des Stammes angelehnt. Moral: Verluste, Flankenangriffe und fliehende Nachbarn senken sie; bei zu wenig Moral flieht die Einheit. Bricht ein Heer zusammen, ist die Schlacht entschieden. Ein Sieg führt zum Kapitulationsangebot, eine Niederlage kostet die Legion Männer.</p>
     <p><b>Ränge und Ansehen (erweiterte Regeln):</b> Du beginnst als <b>Offizier</b>; deine Legionen dürfen höchstens 4.500 Mann stark sein. Mit Ansehen steigst du auf: Offizier → Zenturio (5.000) → Tribun (5.500, Kavallerie) → Legat (6.000) → General (6.500) → Prätor (7.000) → Konsul (7.500) → Prokonsul (8.000) → <b>Caesar (9.000)</b>. Ansehen bringen neue Provinzen (reiche mehr, Verhandlung/Ultimatum noch mehr), Bündnisse, gefestigte Verträge, gewonnene Wagenrennen und gerechte Urteile in der Arena. Es sinkt bei Niederlagen, Aufständen, zerbrochenen Bündnissen, Plünderung und verlorenen Rennen; der Rang geht nie verloren. Die Zufriedenheit Roms (0–100 %) hebt im Winter die Moral. Caesar wirst du nur mit hoher Zufriedenheit, mehreren Spielen und Bündnissen.</p>
     <p><b>Einsatzrhythmus und Finanzen (erweiterte Regeln):</b> Jede Legion kann pro Jahr nur einmal eingesetzt werden (Marsch, Angriff oder Ultimatum im Angriffsdialog); das Verhandlungs-Ultimatum bindet keine Legion. Die Provinz zahlt 8.000 Denare Steuern pro Jahr, der Sold ist auf 40 % des Originals gesenkt. Plane deine vier Armeen also wie vier Pfeile pro Jahr.</p>
     <p><b>Erweiterte Regeln (Fortsetzung):</b> Der Tribut hängt vom Reichtum des Stammes ab (Größe × Volksgruppe: Volcer 1,3 · Gallier 1,0 · Aquitaner 0,9 · Belger 0,8; Friedenstribut = 1000 × Reichtum, nach Eroberung die Hälfte). Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an, dienen 5 Jahre und kehren dann heim; beim Ausscheiden erhalten sie den doppelten Anwerbebetrag (6 Denare).</p>

@@ -11,7 +11,7 @@
   // ---------------------------------------------------------------- Start
   function createGame(sp = 1, rnd = Math.random, rules = {}) {
     const g = {
-      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, map: false, diplomacy: false, once: false, econ: false, rank: false, ...rules }, cohorts: [],
+      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, map: false, diplomacy: false, once: false, econ: false, rank: false, tactics: false, ...rules }, cohorts: [],
       rep: 0, rankIdx: 0, satisf: 50, games: { races: 0, gladiators: 0, amph: false }, gamesYear: 0, events: [], snap: [], year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
       kf: 0, lastX: 0, vs: 0, ga: 0,                     // KF: Winterangriff im Vorjahr, VS/GA: laufende Belagerung
       vx: 0, negotiated: [],                             // VX/V(): Verhandlungen dieses Jahres
@@ -145,7 +145,7 @@
     return { ok: true };
   }
   function beginBattle(g, y, x) {
-    const t = g.tribes[x];
+    const t = g.tribes[x], br0 = t.br;
     if (t.br === 0) g.kf = 0;                                       // Zeile 630
     const G = x === g.vs ? g.ga : Math.floor(t.be / 5);             // laufende Belagerung bleibt geschwaecht
     g.ga = G; g.vs = x; g.lastX = x;
@@ -154,7 +154,7 @@
     // y: eine Legion oder ein Verband (Array). Ein Verband kaempft mit der Summe der Staerken als eine Einheit.
     const ys = [].concat(y).filter(i => g.legions[i].le > 0); markActed(g, ys);
     const les = ys.map(i => g.legions[i].le), R = les.reduce((a, c) => a + c, 0);
-    return { y: ys[0], ys, les, x, R, G, GA: G, RO: R, KA: 0, n: 0, loot: 0 };
+    return { y: ys[0], ys, les, x, R, G, GA: G, RO: R, KA: 0, n: 0, loot: 0, br0 };
   }
   function applyLosses(g, b) { const t = g.tribes[b.x]; t.be = Math.max(0, t.be - (b.G - b.GA)); }  // Zeile 1000 (zaehlt kumulativ, wie im Original)
 
@@ -176,6 +176,27 @@
     }
     if (b.RO < 101) { b.RO = 0; b.n = 1; applyLosses(g, b); return { type: 'lost' }; }
     return { type: 'round' };
+  }
+  // ---- Taktische Schlacht (Regel tactics): Aufstellung und Ergebnis
+  function tacticalOpts(g, b) {
+    const t = g.tribes[b.x], les = b.ys.map(i => g.legions[i]), men = les.reduce((a, l) => a + l.le, 0) || 1;
+    const mv = les.reduce((a, l) => a + l.mv * l.le, 0) / men;
+    return { tribeId: b.x, seed: (t.rk + 1) * 13 + g.year * 7 + b.x, romanMen: b.RO, romanMorale: Math.round(mv), cavalry: !!(g.rules.rank && g.rankIdx >= 2),
+      gaulMen: b.GA, group: t.group, hostile: b.br0 === 0 };
+  }
+  // res aus TAC.result: Gefallene/Fluechtige in Mann. Roemische Fluechtlinge kehren zu 60 % zurueck, gallische zerstreuen sich zu 70 %.
+  function applyTactical(g, b, res) {
+    const rLoss = Math.min(b.R, res.rKilled + Math.round(0.4 * res.rFled)), gLoss = res.gKilled + Math.round(0.7 * res.gFled);
+    b.RO = b.R - rLoss; b.GA = Math.max(0, b.GA - gLoss); b.tactical = true;
+    if (res.winner === 'R') {
+      if (b.GA < 201) return conquered(g, b);
+      applyLosses(g, b); const t = g.tribes[b.x];
+      return { type: 'capitulation', hostages: Math.floor(t.be / 10), denars: Math.floor(t.be / 2) };
+    }
+    b.n = 1; applyLosses(g, b);
+    if (res.retreat) return { type: 'retreat', fled: 0 };
+    if (res.winner === 'G') { if (b.RO < 101) { b.RO = 0; return { type: 'lost' }; } return { type: 'flee', fled: 0 }; }
+    return { type: 'retreat', fled: 0 };                              // unentschieden: beide Heere ziehen ab
   }
   function retreat(g, b) {                                          // Zeile 1020: Feuerknopf
     const rf = Math.floor(g.rnd() * b.RO / 3); b.RO -= rf; b.n = 1; applyLosses(g, b);
@@ -372,7 +393,7 @@
     }
   }
   // ---- Spiele fuer das Volk (Wagenrennen, Gladiatoren, Amphitheater)
-  const GAME_COST = { race: 3000, gladiators: 6000, amphitheater: 30000 }, GAMES_PER_YEAR = 2;
+  const GAME_COST = { race: 9000, gladiators: 18000, amphitheater: 300000 }, GAMES_PER_YEAR = 2;
   function canHold(g, kind) {
     if (!(g.rules && g.rules.rank)) return { ok: false, why: 'Regel nicht aktiv' };
     if (g.rv < GAME_COST[kind]) return { ok: false, why: 'zu wenig Vermögen' };
@@ -506,6 +527,6 @@
   const API = { createGame, beginYear, nextYear, pacified, checkVictory, attitudeLabel,
     canNegotiate, negotiate, negotiationOptions, attackCheck, beginBattle, stepBattle, retreat,
     acceptCapitulation, resolveConquest, finishBattle, payLegion, payLegions, moveLegion,
-    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, canAct, markActed, soldThresholds, PROVINCE_INCOME, reachable, controlled, neighborsOf, TERMS, peaceOffer, applyPeace, ultimatumChance, ultimatum, spendNegotiation, MERC_COST, MAX_LEGION, RANKS, CAESAR_NEED, maxLegion, rankOf, allies, gamesCount, addRep, addSatisf, drainEvents, canHold, holdRace, buildAmphitheater, startGladiators, judgeGladiators, winterRome, GAME_COST, GAMES_PER_YEAR, syncTreaties, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
+    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, tacticalOpts, applyTactical, canAct, markActed, soldThresholds, PROVINCE_INCOME, reachable, controlled, neighborsOf, TERMS, peaceOffer, applyPeace, ultimatumChance, ultimatum, spendNegotiation, MERC_COST, MAX_LEGION, RANKS, CAESAR_NEED, maxLegion, rankOf, allies, gamesCount, addRep, addSatisf, drainEvents, canHold, holdRace, buildAmphitheater, startGladiators, judgeGladiators, winterRome, GAME_COST, GAMES_PER_YEAR, syncTreaties, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.JC = API;
 })(typeof window !== 'undefined' ? window : globalThis);
