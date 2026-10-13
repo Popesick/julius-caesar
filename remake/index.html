@@ -183,7 +183,7 @@
     </div>
   </div>
   <aside>
-    <section class="card banner"><img src="assets/caesar.jpg?v=20261013e" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
+    <section class="card banner"><img src="assets/caesar.jpg?v=20261013f" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
     <section class="card" id="rankCard" hidden></section>
     <section class="card" id="tribeCard"></section>
     <section class="card"><h2>Legionen</h2><div class="legions" id="legions"></div>
@@ -192,7 +192,7 @@
   </aside>
 </main>
 <div id="title" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013e)"></div><div class="scrfade"></div>
+  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013f)"></div><div class="scrfade"></div>
   <div class="titlebox">
     <div class="kicker">Gallien · 58 – 50 v. Chr.</div>
     <h1>JULIUS CAESAR</h1>
@@ -206,7 +206,7 @@
   </div>
 </div>
 <div id="setup" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013e); opacity:.22"></div>
+  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013f); opacity:.22"></div>
   <div class="setupbox">
     <div><h2>Feldzug vorbereiten</h2><p class="lead">Wähle Schwierigkeitsgrad und Spielmodus. Danach beginnt dein Statthalteramt in der Provinz.</p></div>
     <div class="cols">
@@ -233,11 +233,11 @@
 <div id="errbar" hidden style="position:fixed;left:0;right:0;bottom:0;z-index:99;background:#7a2a22;color:#fff;padding:10px 16px;font-size:14px"></div>
 <dialog id="dlg"></dialog>
 
-<script src="data.js?v=20261013e"></script>
-<script src="engine.js?v=20261013e"></script>
-<script src="music.js?v=20261013e"></script>
-<script src="map.js?v=20261013e"></script>
-<script src="tactics.js?v=20261013e"></script>
+<script src="data.js?v=20261013f"></script>
+<script src="engine.js?v=20261013f"></script>
+<script src="music.js?v=20261013f"></script>
+<script src="map.js?v=20261013f"></script>
+<script src="tactics.js?v=20261013f"></script>
 <script>
 'use strict';
 window.addEventListener('error', e => { const b = document.getElementById('errbar'); if (b) { b.hidden = false; b.textContent = 'Fehler: ' + e.message + ' – bitte die Seite mit Strg+F5 (Cache leeren) neu laden. Besteht das Problem weiter, bitte melden.'; } });
@@ -257,7 +257,7 @@ const SP_TEXT = {
 /* ---------- Dialoge ---------- */
 const dlg = $('#dlg');
 dlg.addEventListener('cancel', e => e.preventDefault());
-const VER = '20261013e';
+const VER = '20261013f';
 const pic = (n, cls = '') => n ? `<img class="pic ${cls}" src="assets/${n}.jpg?v=${VER}" alt="" onerror="this.remove()">` : '';
 function ask({ title, html = '', img = '', buttons = [{ label: 'Weiter', value: true, cls: 'primary' }], mount }) {
   return new Promise(res => {
@@ -486,7 +486,7 @@ async function termsDialog(x, scale, title) {
       return `<button data-k="${k}"><b>${JC.TERMS[k].label}</b><br><span class="hint">${JC.TERMS[k].text}<br>Gold ${nf(o.denars)} · Geiseln ${nf(o.hostages)} · Tribut ${nf(o.tribute)}/Jahr · Haltung ${o.br}</span></button>`; }).join('')}</div>`,
     buttons: [], mount: api => api.el.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => api.close(b.dataset.k))) });
 }
-async function ultimatumResolve(ys, x, consume = true) {
+async function ultimatumResolve(ys, x, consume = true, askAttack = false) {
   const t = G.tribes[x]; const u = JC.ultimatum(G, ys, x, consume); G.vs = 0;
   if (u.ok) {
     const key = await termsDialog(x, 0.5, `Die ${t.name} beugen sich`);
@@ -494,10 +494,16 @@ async function ultimatumResolve(ys, x, consume = true) {
     log(`Ultimatum an die ${t.name}: sie beugen sich ohne Kampf`);
     await note('Ultimatum erfolgreich', `<p>Die ${t.name} beugen sich der Übermacht, ohne dass Waffen sprechen.</p><dl><dt>Gold</dt><dd>${nf(offer.denars)}</dd><dt>Geiseln</dt><dd>${nf(offer.hostages)}</dd><dt>Tribut</dt><dd>${nf(offer.tribute)}/Jahr</dd></dl>`, 'Weiter', 'legionaer');
     if (G.over === 'win') await endGame();
-  } else {
-    log(`Ultimatum an die ${t.name} abgelehnt`);
-    await note('Ultimatum abgelehnt', `<p>Die ${t.name} lassen sich nicht einschüchtern und rüsten zum Krieg (Haltung 0).${t.br === 0 && false ? '' : ''}</p><p class="hint">Eine erfolglose Drohung wirkt auf die Volksgruppe wie ein Angriff.</p>`, 'Weiter', 'reiter');
+    return { ok: true, attack: null };
   }
+  log(`Ultimatum an die ${t.name} abgelehnt`);
+  const warn = `<p class="hint">Eine erfolglose Drohung wirkt auf die Volksgruppe wie ein Angriff${t.group != null ? ' (' + GROUPS[t.group] + ')' : ''}.</p>`;
+  if (!askAttack) { await note('Ultimatum abgelehnt', `<p>Die ${t.name} lassen sich nicht einschüchtern und rüsten zum Krieg (Haltung 0).</p>${warn}`, 'Weiter', 'reiter'); return { ok: false, attack: null }; }
+  const go = await ask({ title: 'Ultimatum abgelehnt – angreifen?', img: 'reiter',
+    html: `<p>Die ${t.name} lassen sich nicht einschüchtern und rüsten zum Krieg (Haltung 0). ${ROMANS(ys)} steht vor ihrer Stadt.</p><p>Soll die Armee jetzt angreifen? Wenn nicht, bezieht sie nur Stellung bei den ${t.name}; sie gilt in diesem Jahr trotzdem als eingesetzt.</p>${warn}`,
+    buttons: [{ label: 'Nein, nur Stellung beziehen', value: 'no' }, ...(G.rules && G.rules.tactics ? [{ label: 'Schnell auflösen', value: 'attack' }, { label: 'Schlacht auf dem Feld', value: 'tactical', cls: 'danger' }] : [{ label: 'Angreifen', value: 'attack', cls: 'danger' }])] });
+  if (go === 'no') { JC.moveLegion(G, ys, x); log(`${ROMANS(ys)} bezieht Stellung bei den ${t.name} (kein Angriff)`); return { ok: false, attack: null }; }
+  return { ok: false, attack: go };
 }
 async function ultimatumFlow(x) {
   const t = G.tribes[x], ys = [1, 2, 3, 4].filter(i => G.legions[i].le > 0), total = ys.reduce((a, i) => a + G.legions[i].le, 0), p = JC.ultimatumChance(G, ys, x);
@@ -532,14 +538,18 @@ async function sendLegion(ysIn, x) {
       if (chk.reason !== 'unreachable' && chk.reason !== 'acted') JC.moveLegion(G, ys, x); G.vs = 0; await note('Kein Angriff möglich', `<p>${why}</p>${chk.reason === 'unreachable' || chk.reason === 'acted' ? '' : `<p class="hint">Die Legion bezieht Stellung bei den ${t.name}.</p>`}`); return;
     }
     const as = JC.assess(G, ys, x, 120);
-    const act = await ask({
+    let act = await ask({
       title: `${ROMANS(ys)} vor der Stadt der ${t.name}`, img: 'legionaer',
       html: `<dl><dt>Bevölkerung</dt><dd>${nf(t.be)}</dd><dt>Krieger${G.vs === x ? ' (Belagerung läuft)' : ''}</dt><dd>${nf(G.vs === x ? G.ga : t.be / 5)}</dd><dt>${ys.length > 1 ? 'Eigener Verband' : 'Eigene Legion'}</dt><dd>${nf(total)} Mann</dd></dl>
         <p class="hint"><b>Lageeinschätzung der Offiziere</b> (${ys.length > 1 ? 'Verband' : 'eine Legion allein'}): Kapitulation ${as.capitulation} % · Eroberung ${as.conquered} % · Niederlage ${as.defeat} % — erwartete Verluste ${nf(as.loss)} Mann, Feindverluste ${nf(as.theirLoss)}.${as.defeat > 60 ? ` <span class="bad">${ys.length > 1 ? 'Dieser Verband' : 'Diese Legion allein'} wird zerschellen.${G.rules && G.rules.combined && ys.length < 4 ? ' Ein gemeinsamer Angriff mit mehr Legionen verbessert die Lage stark.' : ''}</span>` : ''}</p>
         ${t.br > 3 ? `<p class="hint">Achtung: Der Angriff auf einen Stamm, der Rom nicht feindlich gesinnt ist, erzürnt seine Volksgruppe (${GROUPS[t.group]}).</p>` : ''}`,
       buttons: [{ label: 'Weiterziehen', value: 'move' }, ...(G.rules && G.rules.diplomacy && t.vt === 0 ? [{ label: `Ultimatum (${Math.round(JC.ultimatumChance(G, ys, x) * 100)} %)`, value: 'ultimatum' }] : []), ...(G.rules && G.rules.tactics ? [{ label: 'Schnell auflösen', value: 'attack' }, { label: 'Schlacht auf dem Feld', value: 'tactical', cls: 'danger' }] : [{ label: 'Angreifen', value: 'attack', cls: 'danger' }])],
     });
-    if (act === 'ultimatum') { await ultimatumResolve(ys, x); return; }
+    if (act === 'ultimatum') {
+      const ur = await ultimatumResolve(ys, x, true, true);                 // bei Ablehnung gleich: Angreifen?
+      if (!ur.attack) return;
+      act = ur.attack;
+    }
     if (act === 'move') { JC.moveLegion(G, ys, x); G.vs = 0; log(`${ROMANS(ys)} bei den ${t.name}`); return; }
     const bmode = act === 'tactical' ? 'tactical' : 'quick';
     let res = await battle(ys, x, bmode);
