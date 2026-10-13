@@ -73,6 +73,11 @@
   .banner img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; object-position: center 12%; border: 2px solid var(--gold); }
   .lg .hire { margin-top: 4px; padding: 3px 8px; font-size: 12.5px; width: 100%; }
   label.joint { display: flex; gap: 8px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+  .rankrow { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; margin-top: 6px; }
+  .rankrow b { color: var(--gold); }
+  .bar.green i { background: var(--peace); }
+  .team { display: flex; gap: 8px; }
+  .team button { flex: 1; padding: 14px 6px; font-weight: 600; }
   .legions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .lg { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; font-size: 13px; }
   .lg b { color: var(--gold); }
@@ -162,7 +167,8 @@
     </div>
   </div>
   <aside>
-    <section class="card banner"><img src="assets/caesar.jpg?v=20261013c" alt="" onerror="this.parentElement.remove()"><div><b>Prokonsul von Gallien</b><div class="hint">Vier Legionen · dreißig Stämme</div></div></section>
+    <section class="card banner"><img src="assets/caesar.jpg?v=20261013d" alt="" onerror="this.parentElement.remove()"><div><b id="bannerTitle">Prokonsul von Gallien</b><div class="hint" id="bannerSub">Vier Legionen · dreißig Stämme</div></div></section>
+    <section class="card" id="rankCard" hidden></section>
     <section class="card" id="tribeCard"></section>
     <section class="card"><h2>Legionen</h2><div class="legions" id="legions"></div>
       <div class="row"><button id="bWinter" class="primary">Winterlager beziehen (Jahr beenden)</button></div></section>
@@ -170,7 +176,7 @@
   </aside>
 </main>
 <div id="title" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013c)"></div><div class="scrfade"></div>
+  <div class="scrbg" style="background-image:url(assets/titel.jpg?v=20261013d)"></div><div class="scrfade"></div>
   <div class="titlebox">
     <div class="kicker">Gallien · 58 – 50 v. Chr.</div>
     <h1>JULIUS CAESAR</h1>
@@ -184,7 +190,7 @@
   </div>
 </div>
 <div id="setup" class="screen" hidden>
-  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013c); opacity:.22"></div>
+  <div class="scrbg" style="background-image:url(assets/standarten.jpg?v=20261013d); opacity:.22"></div>
   <div class="setupbox">
     <div><h2>Feldzug vorbereiten</h2><p class="lead">Wähle Schwierigkeitsgrad und Spielmodus. Danach beginnt dein Statthalteramt in der Provinz.</p></div>
     <div class="cols">
@@ -200,10 +206,10 @@
 <div id="errbar" hidden style="position:fixed;left:0;right:0;bottom:0;z-index:99;background:#7a2a22;color:#fff;padding:10px 16px;font-size:14px"></div>
 <dialog id="dlg"></dialog>
 
-<script src="data.js?v=20261013c"></script>
-<script src="engine.js?v=20261013c"></script>
-<script src="music.js?v=20261013c"></script>
-<script src="map.js?v=20261013c"></script>
+<script src="data.js?v=20261013d"></script>
+<script src="engine.js?v=20261013d"></script>
+<script src="music.js?v=20261013d"></script>
+<script src="map.js?v=20261013d"></script>
 <script>
 'use strict';
 window.addEventListener('error', e => { const b = document.getElementById('errbar'); if (b) { b.hidden = false; b.textContent = 'Fehler: ' + e.message + ' – bitte die Seite mit Strg+F5 (Cache leeren) neu laden. Besteht das Problem weiter, bitte melden.'; } });
@@ -223,7 +229,7 @@ const SP_TEXT = {
 /* ---------- Dialoge ---------- */
 const dlg = $('#dlg');
 dlg.addEventListener('cancel', e => e.preventDefault());
-const VER = '20261013c';
+const VER = '20261013d';
 const pic = (n, cls = '') => n ? `<img class="pic ${cls}" src="assets/${n}.jpg?v=${VER}" alt="" onerror="this.remove()">` : '';
 function ask({ title, html = '', img = '', buttons = [{ label: 'Weiter', value: true, cls: 'primary' }], mount }) {
   return new Promise(res => {
@@ -317,13 +323,30 @@ function renderMap() {
 
 /* ---------- Seitenleiste ---------- */
 function bar(v, max, cls = '') { return `<div class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, v / max * 100))}%"></i></div>`; }
+function renderRank() {
+  const c = $('#rankCard'), on = G.rules && G.rules.rank; c.hidden = !on;
+  $('#bannerTitle').textContent = on ? `${JC.rankOf(G).name} von Gallien` : 'Prokonsul von Gallien';
+  $('#bannerSub').textContent = on ? `Ansehen ${nf(G.rep)} · Höchststärke ${nf(JC.maxLegion(G))} Mann/Legion` : 'Vier Legionen · dreißig Stämme';
+  if (!on) return;
+  const R = JC.RANKS, i = G.rankIdx, nxt = R[i + 1], cur = R[i];
+  const prog = nxt ? Math.max(0, Math.min(100, (G.rep - cur.rep) / (nxt.rep - cur.rep) * 100)) : 100;
+  const need = nxt && i + 1 === R.length - 1 ? ` · Caesar braucht zusätzlich: Zufriedenheit ≥ ${JC.CAESAR_NEED.satisf} (${G.satisf >= JC.CAESAR_NEED.satisf ? '✔' : G.satisf}), ${JC.CAESAR_NEED.games} Spiele (${JC.gamesCount(G) >= JC.CAESAR_NEED.games ? '✔' : JC.gamesCount(G)}), ${JC.CAESAR_NEED.allies} Bündnisse (${JC.allies(G) >= JC.CAESAR_NEED.allies ? '✔' : JC.allies(G)})` : '';
+  const mood = G.satisf >= 85 ? 'begeistert' : G.satisf >= 65 ? 'zufrieden' : G.satisf > 30 ? 'gleichmütig' : G.satisf > 15 ? 'unzufrieden' : 'aufgebracht';
+  c.innerHTML = `<h2>Ansehen in Rom</h2><div class="rankrow"><span>Rang <b>${cur.name}</b></span><span>${nxt ? `nächster: <b>${nxt.name}</b> (${nf(nxt.rep)})` : 'höchster Rang'}</span></div>${bar(prog, 100)}
+    <div class="hint" style="margin-top:4px">${nf(G.rep)} Ansehenspunkte${need}</div>
+    <div class="rankrow"><span>Zufriedenheit Roms: <b>${G.satisf} %</b> (${mood})</span><span title="Ab Tribun">${cur.cav ? '🐎 Kavallerie' : '🐎 ab Tribun'}</span></div>${bar(G.satisf, 100, 'green')}
+    <div class="hint" style="margin-top:4px">Zufriedene Bürger heben im Winter die Moral der Truppe (ab 65 % +1, ab 85 % +2; unter 30 % −1).</div>
+    <div class="row"><button id="bGames" ${busy ? 'disabled' : ''}>Spiele für das Volk …</button></div>`;
+  $('#bGames').onclick = gamesFlow;
+}
 function renderSide() {
+  renderRank();
   $('#cYear').textContent = G.year; $('#cMoney').textContent = nf(G.rv); $('#cPac').textContent = JC.pacified(G); $('#cSp').textContent = G.sp; $('#cMode').textContent = modeName(G.rules);
   const lg = $('#legions'); lg.innerHTML = '';
   for (let i = 1; i <= 4; i++) {
     const L = G.legions[i], d = document.createElement('div'); d.className = 'lg';
-    d.innerHTML = `<b>${ROMAN[i]}. Legion</b>${i === actLegion ? ' ◂' : ''}${G.rules && G.rules.once ? (L.acted ? ' <span class="bad" title="In diesem Jahr bereits eingesetzt">✖ eingesetzt</span>' : ' <span class="good" title="Einsatzbereit">✔ bereit</span>') : ''}<br>${nf(L.le)} Mann ${bar(L.le, JC.MAX_LEGION)}Moral ${L.mv}/9 · ${L.sl}/${L.kl} Siege${JC.veteranCount(G, i) ? `<br><span class="hint" title="Ehemalige Geiseln, dienen ${JC.SERVICE_YEARS} Jahre">davon ${nf(JC.veteranCount(G, i))} Freiwillige</span>` : ''}<br><span class="hint">${L.at ? G.tribes[L.at].name : 'Lager'}</span>`;
-    if (G.rules && G.rules.mercs) { const hb = document.createElement('button'); hb.className = 'hire'; hb.textContent = `Anwerben (${JC.MERC_COST} Den./Mann)`; hb.disabled = busy || L.le >= JC.MAX_LEGION;
+    d.innerHTML = `<b>${ROMAN[i]}. Legion</b>${i === actLegion ? ' ◂' : ''}${G.rules && G.rules.once ? (L.acted ? ' <span class="bad" title="In diesem Jahr bereits eingesetzt">✖ eingesetzt</span>' : ' <span class="good" title="Einsatzbereit">✔ bereit</span>') : ''}<br>${nf(L.le)} Mann ${bar(L.le, JC.maxLegion(G))}Moral ${L.mv}/9 · ${L.sl}/${L.kl} Siege${JC.veteranCount(G, i) ? `<br><span class="hint" title="Ehemalige Geiseln, dienen ${JC.SERVICE_YEARS} Jahre">davon ${nf(JC.veteranCount(G, i))} Freiwillige</span>` : ''}<br><span class="hint">${L.at ? G.tribes[L.at].name : 'Lager'}</span>`;
+    if (G.rules && G.rules.mercs) { const hb = document.createElement('button'); hb.className = 'hire'; hb.textContent = `Anwerben (${JC.MERC_COST} Den./Mann)`; hb.disabled = busy || L.le >= JC.maxLegion(G);
       hb.addEventListener('click', e => { e.stopPropagation(); hireFlow(i); }); d.append(hb); }
     d.addEventListener('click', () => { actLegion = i; renderAll(); }); lg.append(d);
   }
@@ -351,17 +374,57 @@ function renderSide() {
   c.querySelectorAll('[data-send]').forEach(b => b.onclick = () => { actLegion = +b.dataset.send; sendLegion(+b.dataset.send, sel); });
 }
 function renderAll() { renderMap(); renderSide(); }
+async function flushEvents() {
+  const ev = JC.drainEvents(G);
+  for (const e of ev) if (e.kind !== 'rank') log(e.text);
+  for (const e of ev) if (e.kind === 'rank') {
+    log(`${e.text}: Legionen bis ${nf(e.cap)} Mann`);
+    await note(`Beförderung: ${e.to}!`, `<p>Rom ehrt deine Taten. Du bist jetzt <b>${e.to}</b> (zuvor ${e.from}).</p><p>Deine Legionen dürfen bis zu <b>${nf(e.cap)}</b> Mann stark sein.${e.cav ? ' Außerdem darfst du jetzt <b>Kavallerie</b> befehligen (kommt in einer späteren Version).' : ''}</p>`, 'Weiter', 'caesar');
+  }
+  if (ev.length) renderAll();
+}
 function log(s) { const li = document.createElement('li'); li.textContent = `Jahr ${G.year}: ${s}`; $('#log').prepend(li); while ($('#log').children.length > 60) $('#log').lastChild.remove(); }
 function select(id) { if (busy) return; sel = id; renderAll(); }
 
 /* ---------- Soeldner anwerben (Komfort-Regel) ---------- */
 async function hireFlow(i) {
   if (busy) return; const L = G.legions[i];
-  const max = Math.min(JC.MAX_LEGION - L.le, Math.floor(G.rv / JC.MERC_COST));
-  if (max <= 0) { await note('Anwerben nicht möglich', `<p>${L.le >= JC.MAX_LEGION ? 'Die Legion hat bereits die Maximalstärke.' : 'Das Vermögen reicht für keinen Söldner.'}</p>`); return; }
-  const n = await askNumber({ title: `${ROMAN[i]}. Legion · Söldner anwerben`, img: 'zenturio', html: `<p>Jeder Söldner kostet <b>${JC.MERC_COST}</b> Denare. Legion: ${nf(L.le)} / ${nf(JC.MAX_LEGION)} Mann. Vermögen: ${nf(G.rv)}.</p><p class="hint">Denk an die Fixkosten: Im Winter kostet jeder Soldat ½ Denar.</p>`, max, value: Math.min(max, 2000), label: 'Anwerben', unit: 'Mann' });
+  const max = Math.min(JC.maxLegion(G) - L.le, Math.floor(G.rv / JC.MERC_COST));
+  if (max <= 0) { await note('Anwerben nicht möglich', `<p>${L.le >= JC.maxLegion(G) ? 'Die Legion hat bereits die Höchststärke deines Ranges (' + nf(JC.maxLegion(G)) + ' Mann).' : 'Das Vermögen reicht für keinen Söldner.'}</p>`); return; }
+  const n = await askNumber({ title: `${ROMAN[i]}. Legion · Söldner anwerben`, img: 'zenturio', html: `<p>Jeder Söldner kostet <b>${JC.MERC_COST}</b> Denare. Legion: ${nf(L.le)} / ${nf(JC.maxLegion(G))} Mann. Vermögen: ${nf(G.rv)}.</p><p class="hint">Denk an die Fixkosten: Im Winter kostet jeder Soldat ½ Denar.</p>`, max, value: Math.min(max, 2000), label: 'Anwerben', unit: 'Mann' });
   if (n > 0) { const h = JC.hireMercenaries(G, i, n); log(`${ROMAN[i]}. Legion: ${nf(h)} Söldner angeworben`); }
   renderAll();
+}
+
+/* ---------- Spiele fuer das Volk ---------- */
+const TEAMS = ['Weiße', 'Rote', 'Blaue', 'Grüne'];
+async function gamesFlow() {
+  if (busy) return; busy = true; renderSide();
+  try {
+    for (;;) {
+      const ch = ['race', 'gladiators', 'amphitheater'].map(k => ({ k, ...JC.canHold(G, k) }));
+      const pick = await ask({ title: 'Spiele für das Volk', img: 'sieg',
+        html: `<p>Brot und Spiele machen die Bürger zufrieden – und zufriedene Bürger heben die Moral der Truppe. Vermögen: <b>${nf(G.rv)}</b> Denare. Spiele in diesem Jahr: ${G.gamesYear}/${JC.GAMES_PER_YEAR}.</p>
+          <div class="opt"><button data-g="race" ${ch[0].ok ? '' : 'disabled'}><b>Wagenrennen</b> (${nf(JC.GAME_COST.race)}) – setze auf ein Gespann: Sieg +6 Ansehen, +10 Zufriedenheit${ch[0].ok ? '' : ` <span class="bad">· ${ch[0].why}</span>`}</button>
+          <button data-g="gladiators" ${ch[1].ok ? '' : 'disabled'}><b>Gladiatorenspiele</b> (${nf(JC.GAME_COST.gladiators)}) – urteile gerecht über Leben und Tod${ch[1].ok ? '' : ` <span class="bad">· ${ch[1].why}</span>`}</button>
+          <button data-g="amphitheater" ${ch[2].ok ? '' : 'disabled'}><b>Amphitheater bauen</b> (${nf(JC.GAME_COST.amphitheater)}) – einmalig +10 Ansehen, danach jedes Jahr +3 Zufriedenheit${ch[2].ok ? '' : ` <span class="bad">· ${ch[2].why}</span>`}</button></div>
+          <p class="hint">Ansehen ${nf(G.rep)} · Zufriedenheit ${G.satisf} %${G.games.amph ? ' · Amphitheater ✔' : ''}</p>`,
+        buttons: [{ label: 'Fertig', value: null }], mount: api => api.el.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => api.close(b.dataset.g))) });
+      if (!pick) break;
+      if (pick === 'race') {
+        const team = await ask({ title: 'Wagenrennen im Circus Maximus', img: 'reiter', html: '<p>Auf welches Gespann setzt du? Alle haben dieselbe Chance. Siegt dein Gespann, bewundert dich das Volk.</p><div class="team">' + TEAMS.map((n, i) => `<button data-t="${i}">${n}</button>`).join('') + '</div>', buttons: [{ label: 'Abbrechen', value: -1 }], mount: api => api.el.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => api.close(+b.dataset.t))) });
+        if (team < 0) continue;
+        const r = JC.holdRace(G, team);
+        await note(r.won ? 'Dein Gespann siegt!' : 'Dein Gespann verliert', `<p>Die <b>${TEAMS[r.winner]}</b> gewinnen das Rennen. ${r.won ? 'Das Volk jubelt dir zu.' : 'Du verlierst etwas an Ansehen, doch das Volk feiert dennoch.'}</p>`, 'Weiter', r.won ? 'sieg' : 'reiter');
+      } else if (pick === 'gladiators') {
+        const gl = JC.startGladiators(G);
+        const verdict = await ask({ title: 'Gladiatorenspiele', img: 'zenturio', html: `<p>Der Unterlegene liegt am Boden. Er hat <b>${gl.brave ? 'tapfer bis zuletzt gekämpft' : 'feige und halbherzig gekämpft'}</b>. Die Menge tobt. Wie lautet dein Urteil?</p><p class="hint">Urteile so, wie das Volk es erwartet – ein ungerechtes Urteil kostet Sympathie.</p>`, buttons: [{ label: '👍 Gnade', value: 'mercy' }, { label: '👎 Tod', value: 'death', cls: 'danger' }] });
+        const r = JC.judgeGladiators(G, verdict);
+        await note(r.ok ? 'Gerechtes Urteil' : 'Das Volk murrt', `<p>Die Menge verlangte ${r.crowd === 'mercy' ? '<b>Gnade</b>' : 'den <b>Tod</b>'}. ${r.ok ? 'Dein Urteil trifft die Stimmung, der Jubel ist groß.' : 'Dein Urteil missfällt dem Volk.'}</p>`, 'Weiter', r.ok ? 'sieg' : 'reiter');
+      } else { JC.buildAmphitheater(G); await note('Amphitheater errichtet', '<p>Ein prächtiges Amphitheater erhebt sich. Das Volk liebt dich dafür; künftig erfreut es jedes Jahr die Bürger, und Gladiatorenspiele sind möglich.</p>', 'Weiter', 'sieg'); }
+      await flushEvents(); renderAll();
+    }
+  } finally { await flushEvents(); busy = false; renderAll(); }
 }
 
 /* ---------- Verhandlung ---------- */
@@ -376,14 +439,14 @@ async function negotiateFlow(x) {
     mount: api => api.el.querySelectorAll('[data-sa]').forEach(b => b.addEventListener('click', () => api.close(+b.dataset.sa))),
   });
   if (!pick) return;
-  if (pick === 9) { await ultimatumFlow(x); renderAll(); return; }
+  if (pick === 9) { await ultimatumFlow(x); await flushEvents(); renderAll(); return; }
   let amount = 0;
   if (pick === 2) { amount = await askNumber({ title: 'Geldzuwendung', html: `<p>Wie viele Denare schickst du den ${t.name}?</p>`, max: G.rv, label: 'Senden', unit: 'Denare' }); }
   const r = JC.negotiate(G, x, pick, amount);
   const msg = { 2: ['Höchst erfolgreich.', 'good'], 1: ['Erfolgreich.', 'good'], 0: ['Erfolglos.', ''], '-1': ['Katastrophal.', 'bad'] }[r.ef];
   log(`Verhandlung mit ${t.name}: ${msg[0].replace('.', '').toLowerCase()}`);
   await note(`Die Verhandlungen verliefen …`, `<p class="${msg[1]}"><b>${msg[0]}</b></p>`);
-  renderAll();
+  await flushEvents(); renderAll();
 }
 
 /* ---------- Legion entsenden / Kampf ---------- */
@@ -462,7 +525,7 @@ async function sendLegion(ysIn, x) {
       used.add(pick); actLegion = pick; renderAll();
       res = await battle(pick, x);
     }
-  } finally { busy = false; renderAll(); if (G.over !== 'win') Music.play('map'); }
+  } finally { await flushEvents(); busy = false; renderAll(); if (G.over !== 'win') Music.play('map'); }
 }
 
 async function battle(ysIn, x) {
@@ -549,6 +612,10 @@ async function winter() {
     if (bud.discharged) { log(`${nf(bud.discharged)} Freiwillige aus der Geiselhaft entlassen`); await note('Freiwillige kehren heim', `<p><b>${nf(bud.discharged)}</b> ehemalige Geiseln haben ${JC.SERVICE_YEARS} Jahre in den Legionen gedient. Sie erhalten den doppelten Betrag (${nf(bud.discharge)} Denare) und kehren zu ihren Stämmen zurück.</p>`, 'Weiter', 'zenturio'); }
     const lv = JC.levyVolunteers(G);
     if (lv.total) { log(`${nf(lv.total)} Geiseln schließen sich den Legionen an`); await note('Geiseln als Freiwillige', `<p>${JC.VOLUNTEER_RATE * 100} % der Geiseln schließen sich den Legionen an: <b>${nf(lv.total)}</b> Mann, kostenlos. Nach ${JC.SERVICE_YEARS} Jahren scheiden sie aus, kehren zu ihrem Stamm zurück und erhalten den doppelten Betrag.</p><p class="hint">${lv.list.slice(0, 8).map(e => `${G.tribes[e.tribe].name}: ${nf(e.n)}`).join(' · ')}${lv.list.length > 8 ? ' …' : ''}</p>`, 'Weiter', 'legionaer'); }
+    const wr = JC.winterRome(G);
+    if (wr) { log(`Zufriedenheit Roms ${wr.satisf} % (Moral ${wr.moraleDelta > 0 ? '+' : ''}${wr.moraleDelta})`);
+      if (wr.moraleDelta) await note('Stimmung in Rom', `<p>Die Zufriedenheit der Bürger beträgt <b>${wr.satisf} %</b>. ${wr.moraleDelta > 0 ? 'Die Truppe hört vom Jubel in Rom: <b class="good">Moral +' + wr.moraleDelta + '</b> in allen Legionen.' : 'Die Truppe hört von Unruhen in Rom: <b class="bad">Moral ' + wr.moraleDelta + '</b> in allen Legionen.'}</p>`, 'Weiter', 'senator'); }
+    await flushEvents();
     for (let i = 1; i <= 4; i++) {
       const L = G.legions[i], info = JC.recruitInfo(G, i);
       if (info.full) { JC.recruit(G, i, 0); continue; }
@@ -571,7 +638,7 @@ async function winter() {
 async function endGame(reason) {
   busy = true; Music.play(G.over === 'win' ? 'win' : 'lose');
   if (G.over === 'win') {
-    await ask({ title: 'Gratulation!', img: 'sieg', html: `<p>Alle 30 Stämme Galliens sind durch Vertrag oder Waffengewalt an Rom gebunden. Nach ${G.year} Jahr(en) ist der Krieg entschieden.</p><p>Der Senat feiert Caesars Triumph.</p>`, buttons: [{ label: 'Neues Spiel', value: true, cls: 'primary' }] });
+    await ask({ title: 'Gratulation!', img: 'sieg', html: `<p>Alle 30 Stämme Galliens sind durch Vertrag oder Waffengewalt an Rom gebunden. Nach ${G.year} Jahr(en) ist der Krieg entschieden.</p><p>${G.rules && G.rules.rank ? (JC.rankOf(G).name === 'Caesar' ? 'Du hast dir die Liebe des Volkes erworben: Rom ernennt dich zum <b>Caesar</b>!' : `Dein Rang: <b>${JC.rankOf(G).name}</b>. Der Titel Caesar verlangt mehr als Siege: das Wohlwollen des Volkes (Zufriedenheit ≥ ${JC.CAESAR_NEED.satisf} %), ${JC.CAESAR_NEED.games} Spiele und ${JC.CAESAR_NEED.allies} Bündnisse.`) : 'Der Senat feiert Caesars Triumph.'}</p>`, buttons: [{ label: 'Neues Spiel', value: true, cls: 'primary' }] });
   } else {
     await ask({ title: 'Kommando entzogen', img: 'senator', html: `<p>${reason || ''}</p><p>Der Statthalter hat es geschafft: Roms Ansehen in Gallien ist ruiniert, und von Caesars Namen bleibt nichts als eine Fußnote.</p>`, buttons: [{ label: 'Neues Spiel', value: true, cls: 'primary' }] });
   }
@@ -588,7 +655,13 @@ function save(silent) {
 function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY); if (!raw) return false;
-    const s = JSON.parse(raw); G = { ...s, rnd: Math.random }; actLegion = s.actLegion || 1; sel = 0; return true;
+    const s = JSON.parse(raw); G = { ...s, rnd: Math.random }; actLegion = s.actLegion || 1; sel = 0;
+    // Alte Spielstaende auf neue Felder heben: enhanced-Staende bekommen Einsatzrhythmus und ausgewogene Finanzen
+    if (G.rules && G.rules.map && G.rules.once === undefined) { G.rules.once = true; G.rules.econ = true; }
+    G.rules = { rank: false, ...G.rules }; G.rep = G.rep || 0; G.rankIdx = G.rankIdx || 0; G.satisf = G.satisf == null ? 50 : G.satisf;
+    G.games = G.games || { races: 0, gladiators: 0, amph: false }; G.gamesYear = G.gamesYear || 0; G.events = G.events || []; G.snap = G.snap || [];
+    for (let i = 1; i <= 4; i++) G.legions[i].acted = !!G.legions[i].acted;
+    return true;
   } catch (e) { return false; }
 }
 function begin() { buildMap(); renderAll(); Music.play('map'); }
@@ -601,8 +674,9 @@ const FEATURES = [
   ['slaves', 'Geiseln als Freiwillige', '5 % der Geiseln dienen 5 Jahre in den Legionen.'],
   ['once', 'Ein Einsatz pro Legion und Jahr', 'Jede Legion kann pro Jahr nur einmal marschieren oder angreifen.'],
   ['econ', 'Ausgewogene Finanzen', 'Provinzsteuer 8.000 Denare/Jahr, Sold nur 40 % des Originals.'],
+  ['rank', 'Ränge und Ansehen', 'Start als Offizier: Legionen höchstens 4.500 Mann; mit dem Rang wachsen sie bis 9.000. Spiele für das Volk, Zufriedenheit Roms hebt die Moral.'],
 ];
-const SP_NAMES = ['', 'Rekrut', 'Veteran', 'Zenturio', 'Legat', 'Imperator'];
+const SP_NAMES = ['', 'Gemäßigt', 'Herausfordernd', 'Hart', 'Sehr hart', 'Gnadenlos'];
 function modeName(r) { const v = FEATURES.map(f => !!(r && r[f[0]])); return v.every(x => x) ? 'Enhanced' : v.some(x => x) ? 'Eigene Wahl' : 'Original'; }
 function hideScreens() { document.querySelectorAll('.screen').forEach(e => e.hidden = true); }
 function showScreen(id) { hideScreens(); const e = document.getElementById(id); e.hidden = false; e.scrollTop = 0; const f = e.querySelector('button, input'); if (f) f.focus(); }
@@ -651,6 +725,7 @@ function help() {
     <p><b>Taktik (aus den Regeln abgeleitet):</b> (1) Große Stämme (über ca. 70 000 Einwohner) zerschlagen jede einzelne Legion; Geld und Diplomatie sind der Weg, ein ganz früher Angriff ist ein Fehler. (2) Kleine Stämme mit Haltung ≤ 3 (Eburonen, Lexovier, Menapier, Osismer) sind ohne Aufruhr zu bezwingen; Kapitulation bringt ½ Bevölkerung in Denaren, Eroberung bis zu 2,3 × Bevölkerung (nimm höchstens die Hälfte und höchstens 10 % Geiseln, sonst Aufruhr). (3) Greife jedes Jahr einen feindlichen Stamm an (auch mit sofortigem Rückzug): das verhindert den allgemeinen Unmut im Winter. (4) Verbündete (Haltung über 10, Freundschaftsvertrag) sind vor der Jahresunruhe sicher und liefern Hilfstruppen. (5) Eine Legion allein bricht an Riesen. Mit „Gemeinsamer Angriff“ kämpfen mehrere Legionen als ein Verband mit der Summe ihrer Stärke; vier Legionen (18 000 Mann) zwingen sogar die Helvetier zur Kapitulation (≈100 000 Denare) bei etwa 3 700 Verlusten. Alternativ rücken Legionen nacheinander nach, die Verluste der Gallier bleiben im Jahr bestehen.</p>
     <p><b>Karte (erweiterte Regeln):</b> Die 30 Stämme liegen an ihrer historischen Stelle. Angreifen, Verhandeln und Marschieren geht nur bei Stämmen in Reichweite: Nachbarn der Provinz oder eines befriedeten Stammes. Kämpfende (feindliche) Stämme stecken ihre unbefriedeten Nachbarn mit Unruhe an – Unruheherde im Norden und Westen musst du dir Schritt für Schritt erarbeiten. Winterüberfälle kommen nur von feindlichen Stämmen in Reichweite.</p>
     <p><b>Diplomatie (erweiterte Regeln):</b> Friedensbedingungen wählen (mehr Tribut, Geiseln, Entschädigung oder mild). Sondierungsgespräche sind kostenlos, aber unsicher. Ein Ultimatum lässt Stämme bei großer Übermacht einknicken (Erfolg erspart den Kampf, Misserfolg bedeutet Krieg). Nach einem Friedensvertrag kann man zusätzliche Geiseln fordern.</p>
+    <p><b>Ränge und Ansehen (erweiterte Regeln):</b> Du beginnst als <b>Offizier</b>; deine Legionen dürfen höchstens 4.500 Mann stark sein. Mit Ansehen steigst du auf: Offizier → Zenturio (5.000) → Tribun (5.500, Kavallerie) → Legat (6.000) → General (6.500) → Prätor (7.000) → Konsul (7.500) → Prokonsul (8.000) → <b>Caesar (9.000)</b>. Ansehen bringen neue Provinzen (reiche mehr, Verhandlung/Ultimatum noch mehr), Bündnisse, gefestigte Verträge, gewonnene Wagenrennen und gerechte Urteile in der Arena. Es sinkt bei Niederlagen, Aufständen, zerbrochenen Bündnissen, Plünderung und verlorenen Rennen; der Rang geht nie verloren. Die Zufriedenheit Roms (0–100 %) hebt im Winter die Moral. Caesar wirst du nur mit hoher Zufriedenheit, mehreren Spielen und Bündnissen.</p>
     <p><b>Einsatzrhythmus und Finanzen (erweiterte Regeln):</b> Jede Legion kann pro Jahr nur einmal eingesetzt werden (Marsch, Angriff oder Ultimatum im Angriffsdialog); das Verhandlungs-Ultimatum bindet keine Legion. Die Provinz zahlt 8.000 Denare Steuern pro Jahr, der Sold ist auf 40 % des Originals gesenkt. Plane deine vier Armeen also wie vier Pfeile pro Jahr.</p>
     <p><b>Erweiterte Regeln (Fortsetzung):</b> Der Tribut hängt vom Reichtum des Stammes ab (Größe × Volksgruppe: Volcer 1,3 · Gallier 1,0 · Aquitaner 0,9 · Belger 0,8; Friedenstribut = 1000 × Reichtum, nach Eroberung die Hälfte). Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an, dienen 5 Jahre und kehren dann heim; beim Ausscheiden erhalten sie den doppelten Anwerbebetrag (6 Denare).</p>
     <p><b>Winter:</b> Fixkosten = ½ Soldaten. Tribute bringen Einkommen. Sind Geld oder Legionen weg, ist das Spiel verloren.</p>`);

@@ -26,7 +26,7 @@ function hire(g) {
   for (let i = 1; i <= 4; i++) JC.hireMercenaries(g, i, Math.min(9000 - g.legions[i].le, Math.floor(N / 4)));
 }
 function play(sp, seed) {
-  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS, wealth: MERCS, slaves: MERCS, map: MERCS, diplomacy: MERCS, once: MERCS && ONCE, econ: MERCS && ECON }); let years = 0; const rnd = g.rnd;
+  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS, wealth: MERCS, slaves: MERCS, map: MERCS, diplomacy: MERCS, once: MERCS && ONCE, econ: MERCS && ECON, rank: MERCS && RANKS }); let years = 0; const rnd = g.rnd;
   while (!g.over && years < 40) {
     years++;
     hire(g);
@@ -77,7 +77,7 @@ function play(sp, seed) {
 }
 const TRACE = process.argv[4] === 'trace';
 const MERCS = process.argv[5] !== 'classic';
-const ONCE = process.argv[6] !== 'noonce', ECON = process.argv[7] !== 'noecon';
+const ONCE = process.argv[6] !== "noonce", ECON = process.argv[7] !== "noecon", RANKS = process.argv[8] !== "norank";
 const sp = +(process.argv[2] || 1), N = +(process.argv[3] || 200);
 const r = { win: 0, lose: 0, timeout: 0, years: 0, pac: 0 };
 for (let s = 1; s <= N; s++) { const o = play(sp, s); r[o.over]++; r.years += o.years; r.pac += o.pac; }

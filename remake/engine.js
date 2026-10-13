@@ -11,7 +11,8 @@
   // ---------------------------------------------------------------- Start
   function createGame(sp = 1, rnd = Math.random, rules = {}) {
     const g = {
-      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, map: false, diplomacy: false, once: false, econ: false, ...rules }, cohorts: [], year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
+      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, map: false, diplomacy: false, once: false, econ: false, rank: false, ...rules }, cohorts: [],
+      rep: 0, rankIdx: 0, satisf: 50, games: { races: 0, gladiators: 0, amph: false }, gamesYear: 0, events: [], snap: [], year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
       kf: 0, lastX: 0, vs: 0, ga: 0,                     // KF: Winterangriff im Vorjahr, VS/GA: laufende Belagerung
       vx: 0, negotiated: [],                             // VX/V(): Verhandlungen dieses Jahres
       tribes: [null], legions: [null], over: null,
@@ -54,7 +55,7 @@
         if (g.rnd() < 0.3) { n.br -= 1; if (n.br < 1) { n.br = 0; n.vt = 0; n.tr = 0; } g.unrest.push({ from: sId, to: nId }); }
       }
     }
-    g.vx = 0; g.negotiated = []; g.vs = 0;
+    g.vx = 0; g.negotiated = []; g.vs = 0; g.gamesYear = 0; syncTreaties(g);
     return events;
   }
 
@@ -70,6 +71,7 @@
       if (t.group === gx) { t.br -= 1; if (t.br < 1) { t.br = 0; t.vt = 0; t.tr = 0; } }
       if (t.br < 11 && t.vt === 2) { t.vt = 0; t.hi = 0; }
     }
+    syncTreaties(g);
   }
   // Zeilen 1930/1940: allgemeiner Unmut (alle ausser x)
   function angerAll(g, x) {
@@ -78,6 +80,7 @@
       t.br -= 1; if (t.br < 1) { t.br = 0; t.vt = 0; t.tr = 0; }
       if (t.br < 11 && t.vt === 2) { t.vt = 0; t.hi = 0; }
     }
+    syncTreaties(g);
   }
 
   const attitudeLabel = br => br > 10 ? 'freundschaftlich' : br > 7 ? 'wohlgesonnen' : br > 3 ? 'neutral' : br > 0 ? 'feindselig' : 'kriegerisch';
@@ -93,7 +96,7 @@
   function negotiate(g, x, sa, amount = 0) {
     const t = g.tribes[x]; if (!canNegotiate(g, x)) return { ef: null };
     g.lastX = x; let ef = null;
-    if (sa === 1 && t.br > 10 && t.vt < 2) { t.hi = 1000; t.vt = 2; ef = 1; }
+    if (sa === 1 && t.br > 10 && t.vt < 2) { t.hi = 1000; t.vt = 2; ef = 1; g.snap[x] = 2; addRep(g, 12, `Freundschaftsvertrag mit ${t.name}`); addSatisf(g, 3, 'Neues Bündnis'); }
     else if (sa === 2) {
       amount = Math.min(Math.max(0, Math.floor(amount)), g.rv); g.rv -= amount;
       if (amount > Math.floor((t.be + 1) / (t.br + 1))) { t.br += 2; ef = 2; }
@@ -103,12 +106,13 @@
     else if (sa === 4 && t.br !== 0 && t.gr > 0) { t.br += 2; t.be += t.gr; t.gr = 0; ef = 2; }
     else if (sa === 5 && t.br !== 0 && t.tr > 0) { t.tr = 0; t.br += 2; ef = 2; }
     else if (sa === 6 && t.tr < 4 * tributeBase(g, t)) { t.br -= 4; t.tr += 2 * tributeBase(g, t); ef = -1; }
-    else if (sa === 7 && t.gr > 0) { t.gr = 0; t.br = 0; angerGroup(g, x); ef = -1; }
+    else if (sa === 7 && t.gr > 0) { t.gr = 0; t.br = 0; angerGroup(g, x); ef = -1; addSatisf(g, -4, 'Hinrichtung von Geiseln'); addRep(g, -2, 'Hinrichtung von Geiseln'); }
     else if (sa === 8 && g.rules.diplomacy) { const p = Math.min(0.8, 0.15 + 0.07 * t.br); if (g.rnd() < p) { t.br += 1; ef = 1; } else ef = 0; }
     else if (sa === 10 && g.rules.diplomacy && t.vt === 1 && t.br >= 3) { const h = Math.min(t.be, Math.floor(t.be / 40)); t.gr += h; t.be -= h; t.br -= 2; ef = 1; }
     if (ef === null) return { ef: null };
     g.vx += 1; g.negotiated.push(x);
-    cleanup(t);
+    if (ef > 0 && sa !== 1 && sa !== 8 && (t.vt > 0)) addRep(g, t.vt === 2 ? 4 : 2, `Vertrag mit ${t.name} gefestigt`);
+    cleanup(t); syncTreaties(g);
     return { ef };
   }
   function negotiationOptions(g, x) {
@@ -132,12 +136,12 @@
   // ---------------------------------------------------------------- Kampf
   // Ablauf: attackCheck -> beginBattle -> stepBattle (wiederholt) -> [capitulation | conquest | end] -> finishBattle -> payLegion
   function attackCheck(g, y, x) {
-    const t = g.tribes[x];
+    const t = g.tribes[x], ys = [].concat(y);
+    if (!ys.every(i => canAct(g, i))) return { ok: false, reason: 'acted' };       // zuerst: eine Legion kann pro Jahr nur einmal etwas tun
     if (t.ex) return { ok: false, reason: 'destroyed' };
     if (t.vt > 0) return { ok: false, reason: 'treaty' };
     if (!reachable(g, x)) return { ok: false, reason: 'unreachable' };
-    if (![].concat(y).some(i => g.legions[i].le > 0)) return { ok: false, reason: 'empty' };
-    if (![].concat(y).every(i => canAct(g, i))) return { ok: false, reason: 'acted' };
+    if (!ys.some(i => g.legions[i].le > 0)) return { ok: false, reason: 'empty' };
     return { ok: true };
   }
   function beginBattle(g, y, x) {
@@ -192,15 +196,16 @@
     const t = g.tribes[b.x];
     loot = Math.max(0, Math.min(Math.floor(loot), Math.floor(t.be * 2.3)));
     hostages = Math.max(0, Math.min(Math.floor(hostages), t.be));
-    if (loot > Math.floor(t.be * 2.3) / 2) angerGroup(g, b.x);
+    if (loot > Math.floor(t.be * 2.3) / 2) { angerGroup(g, b.x); addSatisf(g, -4, 'Plünderung'); addRep(g, -2, `Plünderung der ${t.name}`); }
     g.rv = Math.min(MAX_MONEY, g.rv + loot);
     let destroyed = false;
     if (hostages === t.be) {                                        // Stamm ausgeloescht
       t.ex = 1; t.br = 1000; t.vt = 1; angerAll(g, b.x); angerAll(g, b.x); destroyed = true;
+      addSatisf(g, -8, `Vernichtung der ${t.name}`); provinceGained(g, b.x, 'destroyed');
     } else {
       if (hostages > t.be / 10) angerGroup(g, b.x);
       const lvl = g.rules && g.rules.diplomacy ? Math.max(-1, Math.min(1, tributeLevel)) : 0;      // -1 niedrig, 0 normal, +1 hoch
-      t.gr += hostages; t.tr = Math.max(50, Math.round(tributeBase(g, t) * 0.5 * [0.5, 1, 2][lvl + 1] / 50) * 50); t.br = 4 - lvl; t.vt = 1; t.be -= hostages;
+      t.gr += hostages; t.tr = Math.max(50, Math.round(tributeBase(g, t) * 0.5 * [0.5, 1, 2][lvl + 1] / 50) * 50); t.br = 4 - lvl; t.vt = 1; t.be -= hostages; provinceGained(g, b.x, 'conquest');
     }
     return { destroyed, loot, hostages };
   }
@@ -218,8 +223,8 @@
       L.kl += 1; setLe(g, y, L.le - lost);
       L.at = b.x; L.x = t.x; L.y = t.y;
     });
-    if (b.n !== 1) t.rs += 1;
-    t.rk += 1;
+    if (b.n !== 1) t.rs += 1; else { addRep(g, -3, `Niederlage gegen die ${t.name}`); addSatisf(g, -4, 'Niederlage'); }
+    t.rk += 1; syncTreaties(g);
     checkVictory(g);
     return { lost: total };
   }
@@ -289,12 +294,12 @@
   function auxiliaries(g) { return g.tribes.reduce((s, t) => s + (t ? t.hi : 0), 0) / 4; }
   function recruitInfo(g, i) {
     const L = g.legions[i], hi = auxiliaries(g);
-    const full = L.le + hi > MAX_LEGION - 1;
-    return { hi, full, maxVolunteers: L.mv * 250, free: MAX_LEGION - L.le - hi };
+    const cap = maxLegion(g), full = L.le + hi > cap - 1;
+    return { hi, full, maxVolunteers: L.mv * 250, free: cap - L.le - hi };
   }
   function recruit(g, i, n) {
     const L = g.legions[i], info = recruitInfo(g, i);
-    if (info.full) { L.le = MAX_LEGION; return L.le; }
+    if (info.full) { L.le = maxLegion(g); return L.le; }
     n = Math.max(0, Math.min(Math.floor(n), info.maxVolunteers, info.free));
     L.le = L.le + info.hi + n; return L.le;
   }
@@ -311,6 +316,102 @@
     if (!g.rules || !g.rules.map) return true;
     return controlled(g, i) || PROV_ADJ.includes(i) || neighborsOf(i).some(n => controlled(g, n));
   }
+  // ---------------------------------------------------------------- Raenge, Ansehen und Roms Zufriedenheit (Regel rank; nach Centurion)
+  // cap: Hoechststaerke je Legion. Ab Tribun darf Kavallerie befehligt werden (noch ohne Funktion). Rang geht nie verloren.
+  const RANKS = [
+    { name: 'Offizier', rep: 0, cap: 4500 }, { name: 'Zenturio', rep: 70, cap: 5000 }, { name: 'Tribun', rep: 170, cap: 5500, cav: true },
+    { name: 'Legat', rep: 270, cap: 6000 }, { name: 'General', rep: 380, cap: 6500 }, { name: 'Prätor', rep: 500, cap: 7000 },
+    { name: 'Konsul', rep: 650, cap: 7500 }, { name: 'Prokonsul', rep: 800, cap: 8000 }, { name: 'Caesar', rep: 950, cap: 9000 },
+  ];
+  const CAESAR_NEED = { satisf: 75, games: 5, allies: 5 };           // zusaetzlich zu den Ansehenspunkten
+  const maxLegion = g => g.rules && g.rules.rank ? RANKS[g.rankIdx].cap : MAX_LEGION;
+  const rankOf = g => RANKS[g.rankIdx];
+  const allies = g => g.tribes.filter(t => t && t.vt === 2).length;
+  const gamesCount = g => g.games.races + g.games.gladiators;
+  const emit = (g, kind, text, extra) => { if (g.rules && g.rules.rank) g.events.push({ kind, text, ...extra }); };
+  function checkRank(g) {
+    if (!(g.rules && g.rules.rank)) return;
+    let target = g.rankIdx;
+    for (let i = g.rankIdx + 1; i < RANKS.length; i++) {
+      if (g.rep < RANKS[i].rep) break;
+      if (i === RANKS.length - 1 && !(g.satisf >= CAESAR_NEED.satisf && gamesCount(g) >= CAESAR_NEED.games && allies(g) >= CAESAR_NEED.allies)) break;
+      target = i;
+    }
+    if (target > g.rankIdx) { const from = RANKS[g.rankIdx]; g.rankIdx = target; emit(g, 'rank', `Beförderung zum ${RANKS[target].name}`, { from: from.name, to: RANKS[target].name, cap: RANKS[target].cap, cav: !!RANKS[target].cav && !from.cav }); }
+  }
+  function addRep(g, pts, why) {
+    if (!(g.rules && g.rules.rank) || !pts) return;
+    g.rep = Math.max(0, g.rep + pts); emit(g, 'rep', `${pts > 0 ? '+' : ''}${pts} Ansehen: ${why}`);
+    checkRank(g);
+  }
+  function addSatisf(g, d, why) {
+    if (!(g.rules && g.rules.rank) || !d) return;
+    g.satisf = Math.max(0, Math.min(100, g.satisf + d)); emit(g, 'satisf', `${d > 0 ? '+' : ''}${d} Zufriedenheit Roms: ${why}`);
+    checkRank(g);
+  }
+  function drainEvents(g) { const e = g.events; g.events = []; return e; }
+  // Provinz hinzugewonnen (Eroberung oder Verhandlung); reiche Gebiete bringen mehr Ehre.
+  function provinceGained(g, x, how) {
+    const t = g.tribes[x]; if (!t) return;
+    const base = 8 + 6 * wealthStarsRaw(t), f = how === 'bloodless' ? 1.25 : how === 'destroyed' ? 0.5 : 1;
+    addRep(g, Math.round(base * f), `${t.name} ${how === 'bloodless' ? 'ohne Kampf gewonnen' : how === 'destroyed' ? 'vernichtet' : 'unterworfen'}`);
+    addSatisf(g, how === 'bloodless' ? 6 : 4, `Triumph über ${t.name}`);
+    g.snap[x] = t.vt;
+  }
+  const wealthStarsRaw = t => Math.max(1, Math.min(5, Math.round(Math.max(0.25, t.pop0 / 100000) * 2)));
+  // Verlorene Vertraege (Aufstand, zerbrochenes Buendnis) erkennen: Ehre Roms leidet, Rang bleibt.
+  function syncTreaties(g) {
+    if (!(g.rules && g.rules.rank)) return;
+    for (let i = 1; i <= N_TRIBES; i++) {
+      const t = g.tribes[i], was = g.snap[i] || 0;
+      if (was > 0 && t.vt === 0 && !t.ex) {
+        if (was === 2) { addRep(g, -4, `Bündnis mit ${t.name} zerbrochen`); addSatisf(g, -3, 'Bündnis zerbrochen'); }
+        else { addRep(g, -3, `Aufstand der ${t.name}`); addSatisf(g, -5, `Aufstand der ${t.name}`); }
+      }
+      g.snap[i] = t.vt;
+    }
+  }
+  // ---- Spiele fuer das Volk (Wagenrennen, Gladiatoren, Amphitheater)
+  const GAME_COST = { race: 3000, gladiators: 6000, amphitheater: 30000 }, GAMES_PER_YEAR = 2;
+  function canHold(g, kind) {
+    if (!(g.rules && g.rules.rank)) return { ok: false, why: 'Regel nicht aktiv' };
+    if (g.rv < GAME_COST[kind]) return { ok: false, why: 'zu wenig Vermögen' };
+    if (kind === 'amphitheater') return g.games.amph ? { ok: false, why: 'bereits gebaut' } : { ok: true };
+    if (g.gamesYear >= GAMES_PER_YEAR) return { ok: false, why: 'in diesem Jahr schon zweimal gefeiert' };
+    if (kind === 'gladiators' && !g.games.amph) return { ok: false, why: 'braucht ein Amphitheater' };
+    return { ok: true };
+  }
+  function holdRace(g, team) {                                       // team 0..3
+    g.rv -= GAME_COST.race; g.gamesYear += 1; g.games.races += 1;
+    const winner = Math.floor(g.rnd() * 4), won = winner === team;
+    if (won) { addRep(g, 6, 'Dein Gespann gewinnt das Wagenrennen'); addSatisf(g, 10, 'Dein Gespann siegt'); }
+    else { addRep(g, -2, 'Dein Gespann verliert'); addSatisf(g, 3, 'Das Volk feiert trotzdem'); }
+    return { winner, won };
+  }
+  function buildAmphitheater(g) {
+    g.rv -= GAME_COST.amphitheater; g.games.amph = true; addRep(g, 10, 'Amphitheater gebaut'); addSatisf(g, 8, 'Amphitheater gebaut');
+  }
+  function startGladiators(g) {                                      // Das Volk urteilt nach Tapferkeit des Unterlegenen
+    g.rv -= GAME_COST.gladiators; g.gamesYear += 1; g.games.gladiators += 1;
+    const brave = g.rnd() < 0.5, crowd = (g.rnd() < 0.8) === brave ? 'mercy' : 'death';
+    g.glad = { brave, crowd }; return { brave };
+  }
+  function judgeGladiators(g, verdict) {
+    const ok = verdict === g.glad.crowd; const crowd = g.glad.crowd; g.glad = null;
+    if (ok) { addRep(g, 5, 'Gerechtes Urteil in der Arena'); addSatisf(g, 12, 'Gerechtes Urteil'); }
+    else { addRep(g, -2, 'Das Volk missbilligt dein Urteil'); addSatisf(g, -6, 'Falsches Urteil'); }
+    return { ok, crowd };
+  }
+  // Winter: Stimmung driftet zur Mitte, Amphitheater erfreut das Volk, zufriedene Buerger heben die Moral der Truppe.
+  function winterRome(g) {
+    if (!(g.rules && g.rules.rank)) return null;
+    const drift = Math.round((50 - g.satisf) * 0.1) + (g.games.amph ? 3 : 0);
+    g.satisf = Math.max(0, Math.min(100, g.satisf + drift));
+    const dm = g.satisf >= 85 ? 2 : g.satisf >= 65 ? 1 : g.satisf <= 15 ? -2 : g.satisf <= 30 ? -1 : 0;
+    if (dm) for (let i = 1; i <= 4; i++) if (g.legions[i].le > 0) g.legions[i].mv = Math.max(0, Math.min(9, g.legions[i].mv + dm));
+    checkRank(g);
+    return { satisf: g.satisf, moraleDelta: dm };
+  }
   // ---------------------------------------------------------------- Erweiterte Regeln (nicht im Original)
   // Reichtum: Groesse des Landes und Volksgruppe bestimmen den Tribut. Original: immer 1000 / 500 / +2000 / Grenze 4000.
   const WEALTH_MULT = [0.8, 1.0, 0.9, 1.3];                         // Belger, Gallier, Aquitaner, Volcer (romanisiert, Handel)
@@ -323,7 +424,7 @@
   function hireMercenaries(g, i, n) {
     if (!g.rules || !g.rules.mercs) return 0;
     const L = g.legions[i];
-    n = Math.max(0, Math.min(Math.floor(n), MAX_LEGION - L.le, Math.floor(g.rv / MERC_COST)));
+    n = Math.max(0, Math.min(Math.floor(n), maxLegion(g) - L.le, Math.floor(g.rv / MERC_COST)));
     L.le += n; g.rv -= n * MERC_COST;
     if (n > 0) L.mv = Math.max(0, L.mv - 0);                        // Moral bleibt unveraendert
     return n;
@@ -338,13 +439,14 @@
   };
   function peaceOffer(g, x, key = 'balanced', scale = 1) {
     const t = g.tribes[x], T = (g.rules && g.rules.diplomacy && TERMS[key]) || TERMS.balanced;
-    return { key, br: T.br, hostages: Math.min(Math.floor(t.be / 4), Math.floor(t.be / 10 * T.h * scale)), denars: Math.floor(t.be / 2 * T.d * scale),
+    return { key, bloodless: scale < 1, br: T.br, hostages: Math.min(Math.floor(t.be / 4), Math.floor(t.be / 10 * T.h * scale)), denars: Math.floor(t.be / 2 * T.d * scale),
       tribute: Math.max(50, Math.round(tributeBase(g, t) * T.t / 50) * 50) };
   }
   function applyPeace(g, x, offer) {
     const t = g.tribes[x];
     t.br = offer.br; t.vt = 1; g.rv = Math.min(MAX_MONEY, g.rv + offer.denars);
     t.gr += offer.hostages; t.be -= offer.hostages; t.tr = offer.tribute;
+    provinceGained(g, x, offer.bloodless ? 'bloodless' : 'conquest');
   }
   // Ultimatum: Erfolgschance steigt mit der Uebermacht (Verbandstaerke gegen Krieger), mit guter Haltung, sinkt bei Kriegszustand.
   function ultimatumChance(g, ys, x) {
@@ -377,8 +479,8 @@
       const raw = t.gr * VOLUNTEER_RATE; let n = Math.floor(raw) + (g.rnd() < raw - Math.floor(raw) ? 1 : 0); n = Math.min(n, t.gr);
       let placed = 0;
       while (placed < n) {                                         // auf die Legion mit der geringsten Staerke verteilen
-        const ys = [1, 2, 3, 4].filter(i => g.legions[i].le < MAX_LEGION).sort((a, b) => g.legions[a].le - g.legions[b].le);
-        if (!ys.length) break; const y = ys[0], k = Math.min(n - placed, MAX_LEGION - g.legions[y].le, Math.max(1, Math.ceil(n / 4)));
+        const ys = [1, 2, 3, 4].filter(i => g.legions[i].le < maxLegion(g)).sort((a, b) => g.legions[a].le - g.legions[b].le);
+        if (!ys.length) break; const y = ys[0], k = Math.min(n - placed, maxLegion(g) - g.legions[y].le, Math.max(1, Math.ceil(n / 4)));
         g.legions[y].le += k; placed += k; g.cohorts.push({ tribe: t.id, n: k, legion: y, year: g.year });
       }
       if (placed) { t.gr -= placed; out.total += placed; out.list.push({ tribe: t.id, n: placed }); }
@@ -404,6 +506,6 @@
   const API = { createGame, beginYear, nextYear, pacified, checkVictory, attitudeLabel,
     canNegotiate, negotiate, negotiationOptions, attackCheck, beginBattle, stepBattle, retreat,
     acceptCapitulation, resolveConquest, finishBattle, payLegion, payLegions, moveLegion,
-    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, canAct, markActed, soldThresholds, PROVINCE_INCOME, reachable, controlled, neighborsOf, TERMS, peaceOffer, applyPeace, ultimatumChance, ultimatum, spendNegotiation, MERC_COST, MAX_LEGION, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
+    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, canAct, markActed, soldThresholds, PROVINCE_INCOME, reachable, controlled, neighborsOf, TERMS, peaceOffer, applyPeace, ultimatumChance, ultimatum, spendNegotiation, MERC_COST, MAX_LEGION, RANKS, CAESAR_NEED, maxLegion, rankOf, allies, gamesCount, addRep, addSatisf, drainEvents, canHold, holdRace, buildAmphitheater, startGladiators, judgeGladiators, winterRome, GAME_COST, GAMES_PER_YEAR, syncTreaties, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.JC = API;
 })(typeof window !== 'undefined' ? window : globalThis);

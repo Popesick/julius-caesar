@@ -129,6 +129,45 @@ g.legions[1].mv = 5; g.rv = 99999; JC.payLegion(g, 1, JC.soldThresholds(g, 4500)
 JC.payLegion(g, 1, 0); assert.equal(g.legions[1].mv, 3);
 assert.equal(JC.budget(g).province, 8000); assert.equal(JC.budget(g).income, 8000); assert.equal(JC.budget(og).province, 0);
 
+// --- Luecke Einsatz: eingesetzte Legion darf nicht erneut "marschieren" (auch nicht zu befriedeten Staemmen)
+g = JC.createGame(1, seeded(9), { once: true, map: true }); g.tribes[1].vt = 1; JC.moveLegion(g, 1, 1);
+assert.equal(JC.attackCheck(g, 1, 1).reason, 'acted'); assert.equal(JC.attackCheck(g, [1, 2], 1).reason, 'acted');
+g.tribes[10].ex = 1; assert.equal(JC.attackCheck(g, 1, 10).reason, 'acted');
+
+// --- Raenge und Ansehen (Regel rank)
+g = JC.createGame(1, seeded(10), { rank: true, wealth: true, map: true, mercs: true });
+assert.equal(JC.RANKS.length, 9); assert.deepEqual(JC.RANKS.map(r => r.cap), [4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000, 9000]);
+assert.equal(JC.rankOf(g).name, 'Offizier'); assert.equal(JC.maxLegion(g), 4500);
+assert.equal(JC.hireMercenaries(g, 1, 999), 0);                                                     // Legion schon auf Rang-Hoechststaerke
+assert.equal(JC.maxLegion(JC.createGame(1, seeded(1))), 9000);                                       // Original: 9000
+JC.addRep(g, 75, 'Test'); assert.equal(JC.rankOf(g).name, 'Zenturio'); assert.equal(JC.maxLegion(g), 5000);
+assert.equal(JC.hireMercenaries(g, 1, 999), 500);
+const evs = JC.drainEvents(g); assert(evs.some(e => e.kind === "rank" && e.to === "Zenturio")); assert.equal(g.events.length, 0);
+JC.addRep(g, -500, 'Skandal'); assert.equal(g.rep, 0); assert.equal(JC.rankOf(g).name, 'Zenturio');   // nie degradiert
+JC.addRep(g, 200, 'Test'); assert.equal(JC.rankOf(g).name, 'Tribun'); assert(JC.drainEvents(g).some(e => e.kind === 'rank' && e.cav));  // Kavallerie ab Tribun
+// Caesar braucht mehr als Punkte
+g = JC.createGame(1, seeded(10), { rank: true }); JC.addRep(g, 2000, 'Test'); assert.equal(JC.rankOf(g).name, 'Prokonsul');
+g.satisf = 80; g.games.races = 5; for (let i = 1; i <= 5; i++) g.tribes[i].vt = 2; JC.addSatisf(g, 1, 'Test'); assert.equal(JC.rankOf(g).name, 'Caesar'); assert.equal(JC.maxLegion(g), 9000);
+// Provinz bringt mehr Ehre, wenn reich; bloss ohne Kampf noch mehr
+g = JC.createGame(1, seeded(12), { rank: true, diplomacy: true }); JC.applyPeace(g, 10, JC.peaceOffer(g, 10, 'balanced', 1)); const r1 = g.rep;       // Helvetier (reich)
+g = JC.createGame(1, seeded(12), { rank: true, diplomacy: true }); JC.applyPeace(g, 8, JC.peaceOffer(g, 8, 'balanced', 1)); const r2 = g.rep;        // Eburonen (klein)
+assert(r1 > r2 && r2 >= 14, r1 + ' ' + r2);
+g = JC.createGame(1, seeded(12), { rank: true, diplomacy: true }); JC.applyPeace(g, 8, JC.peaceOffer(g, 8, 'balanced', 0.5)); assert(g.rep > r2);
+// Aufstand kostet Ansehen, nie den Rang
+g = JC.createGame(1, seeded(13), { rank: true }); JC.addRep(g, 80, 't'); JC.applyPeace(g, 8, JC.peaceOffer(g, 8)); const rr = g.rep, st = g.satisf; g.tribes[8].br = 0; g.tribes[8].vt = 0; JC.syncTreaties(g);
+assert(g.rep < rr && g.satisf < st && JC.rankOf(g).name === 'Zenturio');
+// Spiele
+g = JC.createGame(1, seeded(14), { rank: true }); g.rv = 100000;
+assert(!JC.canHold(g, 'gladiators').ok); assert(JC.canHold(g, 'race').ok); const rc = JC.holdRace(g, 2); assert.equal(g.rv, 97000); assert.equal(g.games.races, 1);
+JC.buildAmphitheater(g); assert(g.games.amph && !JC.canHold(g, 'amphitheater').ok && JC.canHold(g, 'gladiators').ok);
+JC.holdRace(g, 1); assert(!JC.canHold(g, 'race').ok);                                                     // max. 2 Spiele pro Jahr (Rennen + Rennen)
+JC.beginYear(g); assert(JC.canHold(g, 'gladiators').ok); JC.startGladiators(g); const gj = JC.judgeGladiators(g, 'mercy'); assert.equal(typeof gj.ok, 'boolean');
+// Zufriedenheit -> Moral im Winter
+g = JC.createGame(1, seeded(15), { rank: true }); g.satisf = 90; JC.winterRome(g); assert.equal(g.legions[1].mv, 7);
+g = JC.createGame(1, seeded(15), { rank: true }); g.satisf = 10; JC.winterRome(g); assert.equal(g.legions[1].mv, 3);
+g = JC.createGame(1, seeded(15), { rank: true }); g.satisf = 50; JC.winterRome(g); assert.equal(g.legions[1].mv, 5);
+g = JC.createGame(1, seeded(15)); g.satisf = 99; assert.equal(JC.winterRome(g), null);                  // ohne Regel nichts
+
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {
   const g = JC.createGame(sp, seeded(seed)); let years = 0;
