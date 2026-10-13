@@ -116,6 +116,19 @@ g = JC.createGame(1, seeded(4), { diplomacy: true }); let efs = []; for (let k =
 assert(efs.includes(1) && efs.includes(0));
 g = JC.createGame(1, seeded(4), { diplomacy: true }); g.tribes[8].vt = 1; g.tribes[8].br = 5; const be0 = g.tribes[8].be; assert.equal(JC.negotiate(g, 8, 10).ef, 1); assert.equal(g.tribes[8].gr, Math.floor(be0 / 40)); assert.equal(g.tribes[8].br, 3);
 
+// --- Einsatzrhythmus und ausgewogene Finanzen
+g = JC.createGame(1, seeded(8), { once: true, econ: true });
+assert(JC.canAct(g, 1)); JC.moveLegion(g, 1, 10); assert(!JC.canAct(g, 1)); assert.equal(JC.attackCheck(g, [1, 2], 10).reason, 'acted');
+assert.equal(JC.attackCheck(g, [2, 3], 10).ok, true); JC.beginBattle(g, [2, 3], 10); assert(!JC.canAct(g, 2) && !JC.canAct(g, 3) && JC.canAct(g, 4));
+JC.beginYear(g); assert([1, 2, 3, 4].every(i => JC.canAct(g, i)));                                    // neues Jahr: alle bereit
+const og = JC.createGame(1, seeded(8)); JC.moveLegion(og, 1, 10); assert(JC.canAct(og, 1));         // ohne Regel: beliebig oft
+g.legions[1].acted = false; const u = JC.ultimatum(g, [1], 8, false); assert(JC.canAct(g, 1));        // Verhandlungs-Ultimatum bindet keine Legion
+JC.ultimatum(g, [1], 8, true); assert(!JC.canAct(g, 1));
+assert.equal(JC.soldThresholds(g, 4500).neutral, Math.ceil(4500 * 1.1 * 0.4)); assert.equal(JC.soldThresholds(og, 4500).neutral, Math.ceil(4500 * 1.1));
+g.legions[1].mv = 5; g.rv = 99999; JC.payLegion(g, 1, JC.soldThresholds(g, 4500).neutral); assert.equal(g.legions[1].mv, 5);    // genug Sold: keine Moraleinbusse
+JC.payLegion(g, 1, 0); assert.equal(g.legions[1].mv, 3);
+assert.equal(JC.budget(g).province, 8000); assert.equal(JC.budget(g).income, 8000); assert.equal(JC.budget(og).province, 0);
+
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {
   const g = JC.createGame(sp, seeded(seed)); let years = 0;

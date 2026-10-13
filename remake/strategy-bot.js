@@ -13,7 +13,7 @@ function fight(g, y, x, take) {                          // take: 'peace' | 'con
     break;
   }
   JC.finishBattle(g, b);
-  const L = g.legions[y]; JC.payLegion(g, y, Math.min(g.rv, Math.floor(L.le * 0.55)));
+  const L = g.legions[y]; JC.payLegion(g, y, Math.min(g.rv, MERCS ? JC.soldThresholds(g, L.le).neutral : Math.floor(L.le * 0.55)));
   return b.n === 0;
 }
 
@@ -26,20 +26,20 @@ function hire(g) {
   for (let i = 1; i <= 4; i++) JC.hireMercenaries(g, i, Math.min(9000 - g.legions[i].le, Math.floor(N / 4)));
 }
 function play(sp, seed) {
-  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS, wealth: MERCS, slaves: MERCS, map: MERCS, diplomacy: MERCS }); let years = 0; const rnd = g.rnd;
+  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS, wealth: MERCS, slaves: MERCS, map: MERCS, diplomacy: MERCS, once: MERCS && ONCE, econ: MERCS && ECON }); let years = 0; const rnd = g.rnd;
   while (!g.over && years < 40) {
     years++;
     hire(g);
     // 0) Verband: mit allen Legionen den groessten feindlichen/freien Riesen zur Kapitulation zwingen (Komfort-Regel)
     if (MERCS) {
-      const ys = [1, 2, 3, 4].filter(i => g.legions[i].le > 2000), tot = ys.reduce((a, i) => a + g.legions[i].le, 0);
+      const ys = [1, 2, 3, 4].filter(i => g.legions[i].le > 2000 && JC.canAct(g, i)), tot = ys.reduce((a, i) => a + g.legions[i].le, 0);
       const giants = g.tribes.filter(t => t && !t.ex && t.vt === 0 && t.be >= SMALL && JC.reachable(g, t.id)).sort((a, b) => b.be - a.be);
       const tgt = giants.find(t => tot >= Math.floor(t.be / 5) * 0.42);
       if (tgt && ys.length) {
         const b = JC.beginBattle(g, ys, tgt.id); let ev;
         for (let i = 0; i < 500; i++) { ev = JC.stepBattle(g, b); if (ev.type !== 'round') break; }
         if (ev.type === 'capitulation') JC.acceptCapitulation(g, b); else if (ev.type === 'conquered') JC.resolveConquest(g, b, Math.floor(ev.maxLoot / 2), Math.floor(g.tribes[tgt.id].be / 10));
-        JC.finishBattle(g, b); JC.payLegions(g, ys, Math.min(g.rv, Math.floor(JC.auxiliaries(g) * 0 + ys.reduce((a, i) => a + g.legions[i].le, 0) * 0.55)));
+        JC.finishBattle(g, b); JC.payLegions(g, ys, Math.min(g.rv, JC.soldThresholds(g, ys.reduce((a, i) => a + g.legions[i].le, 0)).neutral));
         hire(g);
       }
     }
@@ -48,14 +48,14 @@ function play(sp, seed) {
     let used = 0;
     for (const t of targets) {
       if (used >= 4) break;
-      const y = [1, 2, 3, 4].filter(i => g.legions[i].le >= 3000).sort((a, b) => g.legions[b].le - g.legions[a].le)[0];
+      const y = [1, 2, 3, 4].filter(i => g.legions[i].le >= 3000 && JC.canAct(g, i)).sort((a, b) => g.legions[b].le - g.legions[a].le)[0];
       if (!y) break;
       fight(g, y, t.id, g.rv < 40000 ? 'conquer' : 'peace'); used++;
       if (JC.checkVictory(g)) break;
     }
     // 2) Feindschaft ruhig halten: jedes Jahr einen Angriff auf einen feindlichen Stamm (setzt KF zurueck), sofort Rueckzug
     const hostile = g.tribes.filter(t => t && !t.ex && t.br === 0 && JC.reachable(g, t.id));
-    if (hostile.length) { const y = [1, 2, 3, 4].find(i => g.legions[i].le > 500); if (y) { const b = JC.beginBattle(g, y, hostile[0].id); JC.retreat(g, b); JC.finishBattle(g, b); JC.payLegion(g, y, Math.min(g.rv, g.legions[y].le)); } }
+    if (hostile.length) { const y = [1, 2, 3, 4].find(i => g.legions[i].le > 500 && JC.canAct(g, i)); if (y) { const b = JC.beginBattle(g, y, hostile[0].id); JC.retreat(g, b); JC.finishBattle(g, b); JC.payLegion(g, y, Math.min(g.rv, g.legions[y].le)); } }
     // 3) Diplomatie: 5 Versuche - Freundschaft, sonst guenstigste Geschenke
     for (let k = 0; k < 5; k++) {
       const cand = g.tribes.filter(t => t && !t.ex && JC.canNegotiate(g, t.id));
@@ -77,6 +77,7 @@ function play(sp, seed) {
 }
 const TRACE = process.argv[4] === 'trace';
 const MERCS = process.argv[5] !== 'classic';
+const ONCE = process.argv[6] !== 'noonce', ECON = process.argv[7] !== 'noecon';
 const sp = +(process.argv[2] || 1), N = +(process.argv[3] || 200);
 const r = { win: 0, lose: 0, timeout: 0, years: 0, pac: 0 };
 for (let s = 1; s <= N; s++) { const o = play(sp, s); r[o.over]++; r.years += o.years; r.pac += o.pac; }

@@ -11,7 +11,7 @@
   // ---------------------------------------------------------------- Start
   function createGame(sp = 1, rnd = Math.random, rules = {}) {
     const g = {
-      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, map: false, diplomacy: false, ...rules }, cohorts: [], year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
+      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, map: false, diplomacy: false, once: false, econ: false, ...rules }, cohorts: [], year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
       kf: 0, lastX: 0, vs: 0, ga: 0,                     // KF: Winterangriff im Vorjahr, VS/GA: laufende Belagerung
       vx: 0, negotiated: [],                             // VX/V(): Verhandlungen dieses Jahres
       tribes: [null], legions: [null], over: null,
@@ -23,7 +23,7 @@
       vt: 0,                                             // VT: 0 frei, 1 Friedensvertrag, 2 Freundschaftsvertrag
       gr: 0, ex: 0, rk: 0, rs: 0, tr: 0, hi: 0,          // Geiseln, zerstoert, Kriege, Roemer-Siege, Tribut, Hilfstruppen
     };
-    for (let i = 1; i <= 4; i++) g.legions[i] = { le: 4500, mv: 5, kl: 0, sl: 0, at: 0, x: START.x, y: START.y };
+    for (let i = 1; i <= 4; i++) g.legions[i] = { le: 4500, mv: 5, kl: 0, sl: 0, at: 0, acted: false, x: START.x, y: START.y };
     // Spielstaerke (SP 1..5), Zeilen 190-240
     if (sp === 5) { for (let i = 1; i <= N_TRIBES; i++) g.tribes[i].br = Math.floor(rnd() * 6); g.tribes[20].br = 10; g.rv = 50000; }
     if (sp === 3) for (let i = 1; i <= 4; i++) g.legions[i].le = 2500;
@@ -45,7 +45,7 @@
       if (t.br < 1) { t.vt = 0; t.tr = 0; t.br = 0; }
       events.push(o);
     }
-    g.unrest = [];
+    g.unrest = []; for (let i = 1; i <= 4; i++) g.legions[i].acted = false;      // Regel once: jede Legion einmal pro Jahr
     if (g.rules && g.rules.map) {                                  // Unruheherde: feindliche, nicht kontrollierte Staemme stecken Nachbarn an
       const sources = g.tribes.filter(t => t && t.br === 0 && !t.ex && t.vt === 0).map(t => t.id);
       for (const sId of sources) for (const nId of neighborsOf(sId)) {
@@ -137,6 +137,7 @@
     if (t.vt > 0) return { ok: false, reason: 'treaty' };
     if (!reachable(g, x)) return { ok: false, reason: 'unreachable' };
     if (![].concat(y).some(i => g.legions[i].le > 0)) return { ok: false, reason: 'empty' };
+    if (![].concat(y).every(i => canAct(g, i))) return { ok: false, reason: 'acted' };
     return { ok: true };
   }
   function beginBattle(g, y, x) {
@@ -147,7 +148,7 @@
     if (t.br > 3) angerGroup(g, x);                                 // Zeile 700
     t.br = 0; t.vt = 0; t.tr = 0;                                   // Zeile 705: Krieg
     // y: eine Legion oder ein Verband (Array). Ein Verband kaempft mit der Summe der Staerken als eine Einheit.
-    const ys = [].concat(y).filter(i => g.legions[i].le > 0);
+    const ys = [].concat(y).filter(i => g.legions[i].le > 0); markActed(g, ys);
     const les = ys.map(i => g.legions[i].le), R = les.reduce((a, c) => a + c, 0);
     return { y: ys[0], ys, les, x, R, G, GA: G, RO: R, KA: 0, n: 0, loot: 0 };
   }
@@ -223,12 +224,17 @@
     return { lost: total };
   }
   // Zeilen 3790-3880: Sold -> Moral
+  const soldScale = g => g.rules && g.rules.econ ? 0.4 : 1;
+  const PROVINCE_INCOME = 8000;                                      // econ: Steuern der Provinz pro Jahr
+  // Sold, ab dem die Moral nicht sinkt (unterhalb: -1/-2), und ab dem sie steigt
+  function soldThresholds(g, le) { const k = soldScale(g); return { neutral: Math.ceil(le * 1.1 * k), bonus: Math.floor(le * 3.1 * k) + 1 }; }
   function payLegion(g, y, amount) {
     const L = g.legions[y]; amount = Math.max(0, Math.min(Math.floor(amount), g.rv)); g.rv -= amount;
-    if (amount < L.le * 0.5) L.mv -= 2;
-    else if (amount < L.le * 1.1) L.mv -= 1;
-    else if (amount < L.le * 2.1) { /* unveraendert */ }
-    else if (amount > L.le * 3.1) L.mv = Math.min(9, L.mv + 1);
+    const k = soldScale(g);                                         // econ: Schwellen 40 % des Originals
+    if (amount < L.le * 0.5 * k) L.mv -= 2;
+    else if (amount < L.le * 1.1 * k) L.mv -= 1;
+    else if (amount < L.le * 2.1 * k) { /* unveraendert */ }
+    else if (amount > L.le * 3.1 * k) L.mv = Math.min(9, L.mv + 1);
     L.mv = Math.max(0, L.mv);
     return amount;
   }
@@ -240,7 +246,7 @@
     return amount;
   }
   // Legion ohne Kampf verlegen (Zeile 5030)
-  function moveLegion(g, y, x) { const t = g.tribes[x]; [].concat(y).forEach(i => { const L = g.legions[i]; L.at = x; L.x = t.x; L.y = t.y; }); }
+  function moveLegion(g, y, x) { const t = g.tribes[x]; markActed(g, y); [].concat(y).forEach(i => { const L = g.legions[i]; L.at = x; L.x = t.x; L.y = t.y; }); }
 
   // ---------------------------------------------------------------- Winterlager / Jahresabschluss
   // Teil 1 (Zeilen 3940-4150): Angriffe auf das Winterlager. Teil 2 (4160-4410): Haushalt.
@@ -260,12 +266,13 @@
     return { attackers, loss: mz, size: mz < 2000 ? 'gering' : mz > 4000 ? 'gewaltig' : 'groß' };
   }
   function budget(g) {
-    const income = g.tribes.reduce((s, t) => s + (t ? t.tr : 0), 0);
+    const province = g.rules && g.rules.econ ? PROVINCE_INCOME : 0;
+    const income = g.tribes.reduce((s, t) => s + (t ? t.tr : 0), 0) + province;
     const soldiers = g.legions.reduce((s, l) => s + (l ? l.le : 0), 0);
     const cost = Math.floor(soldiers / 2);
     const due = dischargeDue(g), discharged = due.reduce((a, c) => a + c.n, 0), discharge = discharged * DISCHARGE_PAY;
     const total = Math.min(MAX_MONEY, g.rv + income - cost - discharge);
-    return { income, cost, soldiers, total, pacified: pacified(g), discharge, discharged };
+    return { income, province, cost, soldiers, total, pacified: pacified(g), discharge, discharged };
   }
   function closeBudget(g) {
     const b = budget(g);
@@ -292,6 +299,10 @@
     L.le = L.le + info.hi + n; return L.le;
   }
 
+  // ---------------------------------------------------------------- Einsatzrhythmus (Regel once)
+  // Jede Legion darf pro Jahr genau einmal eingesetzt werden: Marsch (Weiterziehen), Angriff oder Ultimatum im Angriffsdialog.
+  const canAct = (g, y) => !(g.rules && g.rules.once) || !g.legions[y].acted;
+  function markActed(g, ys) { if (g.rules && g.rules.once) [].concat(ys).forEach(i => { g.legions[i].acted = true; }); }
   // ---------------------------------------------------------------- Karte: Kontrolle und Reichweite (Regel map)
   const controlled = (g, i) => { const t = g.tribes[i]; return !!t && (t.vt > 0 || !!t.ex); };
   const neighborsOf = i => ADJ[i] || [];
@@ -341,8 +352,8 @@
     let p = (R / Math.max(1, Gw) - 1) / 1.5 + 0.02 * t.br; if (t.br === 0) p *= 0.6;
     return Math.max(0, Math.min(0.9, p));
   }
-  function ultimatum(g, ys, x) {
-    const t = g.tribes[x], p = ultimatumChance(g, ys, x); g.lastX = x;
+  function ultimatum(g, ys, x, consume = true) {
+    const t = g.tribes[x], p = ultimatumChance(g, ys, x); g.lastX = x; if (consume) markActed(g, ys);
     if (g.rnd() < p) return { ok: true, chance: p };
     if (t.br > 3) angerGroup(g, x);                                 // Drohung ohne Erfolg gilt wie ein Angriff
     t.br = 0; t.vt = 0; t.tr = 0;
@@ -393,6 +404,6 @@
   const API = { createGame, beginYear, nextYear, pacified, checkVictory, attitudeLabel,
     canNegotiate, negotiate, negotiationOptions, attackCheck, beginBattle, stepBattle, retreat,
     acceptCapitulation, resolveConquest, finishBattle, payLegion, payLegions, moveLegion,
-    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, reachable, controlled, neighborsOf, TERMS, peaceOffer, applyPeace, ultimatumChance, ultimatum, spendNegotiation, MERC_COST, MAX_LEGION, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
+    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, canAct, markActed, soldThresholds, PROVINCE_INCOME, reachable, controlled, neighborsOf, TERMS, peaceOffer, applyPeace, ultimatumChance, ultimatum, spendNegotiation, MERC_COST, MAX_LEGION, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.JC = API;
 })(typeof window !== 'undefined' ? window : globalThis);
