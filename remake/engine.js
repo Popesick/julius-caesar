@@ -2,15 +2,16 @@
 // C64-Originals (Kingsoft 1989). Reine Logik, keine UI. Siehe ../DESIGN.md.
 // Namen in Klammern verweisen auf die BASIC-Variablen bzw. Zeilen des Originals (HP-Programm).
 (function (root) {
-  const D = (typeof module !== 'undefined' && module.exports) ? require('./data.js') : { TRIBES, LEGION_START };
-  const DATA_TRIBES = D.TRIBES, START = D.LEGION_START;
+  const D = (typeof module !== 'undefined' && module.exports) ? require('./data.js') : { TRIBES, LEGION_START, NEIGHBORS, PROVINCE_ADJ };
+  const DATA_TRIBES = D.TRIBES, START = D.LEGION_START, EDGES = D.NEIGHBORS || [], PROV_ADJ = D.PROVINCE_ADJ || [];
+  const ADJ = {}; for (const [a, b] of EDGES) { (ADJ[a] = ADJ[a] || []).push(b); (ADJ[b] = ADJ[b] || []).push(a); }
 
   const MAX_LEGION = 9000, MAX_MONEY = 990000, N_TRIBES = 30;
 
   // ---------------------------------------------------------------- Start
   function createGame(sp = 1, rnd = Math.random, rules = {}) {
     const g = {
-      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, ...rules }, cohorts: [], year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
+      sp, rnd, rules: { mercs: false, combined: false, wealth: false, slaves: false, map: false, diplomacy: false, ...rules }, cohorts: [], year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
       kf: 0, lastX: 0, vs: 0, ga: 0,                     // KF: Winterangriff im Vorjahr, VS/GA: laufende Belagerung
       vx: 0, negotiated: [],                             // VX/V(): Verhandlungen dieses Jahres
       tribes: [null], legions: [null], over: null,
@@ -43,6 +44,15 @@
       if (t.vt < 2) t.br -= 1;
       if (t.br < 1) { t.vt = 0; t.tr = 0; t.br = 0; }
       events.push(o);
+    }
+    g.unrest = [];
+    if (g.rules && g.rules.map) {                                  // Unruheherde: feindliche, nicht kontrollierte Staemme stecken Nachbarn an
+      const sources = g.tribes.filter(t => t && t.br === 0 && !t.ex && t.vt === 0).map(t => t.id);
+      for (const sId of sources) for (const nId of neighborsOf(sId)) {
+        const n = g.tribes[nId];
+        if (!n || n.ex || n.vt === 2 || controlled(g, nId) || n.br === 0) continue;
+        if (g.rnd() < 0.3) { n.br -= 1; if (n.br < 1) { n.br = 0; n.vt = 0; n.tr = 0; } g.unrest.push({ from: sId, to: nId }); }
+      }
     }
     g.vx = 0; g.negotiated = []; g.vs = 0;
     return events;
@@ -78,7 +88,7 @@
   //                0 erfolglos, -1 katastrophal; null = Aktion nicht moeglich (kostet keinen Versuch).
   function canNegotiate(g, x) {
     const t = g.tribes[x];
-    return !t.ex && g.vx < 5 && !g.negotiated.includes(x);
+    return !t.ex && g.vx < 5 && !g.negotiated.includes(x) && reachable(g, x);
   }
   function negotiate(g, x, sa, amount = 0) {
     const t = g.tribes[x]; if (!canNegotiate(g, x)) return { ef: null };
@@ -94,6 +104,8 @@
     else if (sa === 5 && t.br !== 0 && t.tr > 0) { t.tr = 0; t.br += 2; ef = 2; }
     else if (sa === 6 && t.tr < 4 * tributeBase(g, t)) { t.br -= 4; t.tr += 2 * tributeBase(g, t); ef = -1; }
     else if (sa === 7 && t.gr > 0) { t.gr = 0; t.br = 0; angerGroup(g, x); ef = -1; }
+    else if (sa === 8 && g.rules.diplomacy) { const p = Math.min(0.8, 0.15 + 0.07 * t.br); if (g.rnd() < p) { t.br += 1; ef = 1; } else ef = 0; }
+    else if (sa === 10 && g.rules.diplomacy && t.vt === 1 && t.br >= 3) { const h = Math.min(t.be, Math.floor(t.be / 40)); t.gr += h; t.be -= h; t.br -= 2; ef = 1; }
     if (ef === null) return { ef: null };
     g.vx += 1; g.negotiated.push(x);
     cleanup(t);
@@ -109,6 +121,11 @@
       { sa: 5, label: 'Verzicht auf die Tributforderungen', ok: t.br !== 0 && t.tr > 0 },
       { sa: 6, label: 'Erhöhung der Tributforderungen', ok: t.tr < 4 * tributeBase(g, t) },
       { sa: 7, label: 'Hinrichtung der Geiseln', ok: t.gr > 0 },
+      ...(g.rules.diplomacy ? [
+        { sa: 8, label: 'Sondierungsgespräch (kostenlos)', ok: true },
+        { sa: 10, label: 'Zusätzliche Geiseln fordern', ok: t.vt === 1 && t.br >= 3 },
+        { sa: 9, label: 'Ultimatum stellen (Drohung)', ok: t.vt === 0 && g.legions.slice(1).some(l => l.le > 0) },
+      ] : []),
     ];
   }
 
@@ -118,6 +135,7 @@
     const t = g.tribes[x];
     if (t.ex) return { ok: false, reason: 'destroyed' };
     if (t.vt > 0) return { ok: false, reason: 'treaty' };
+    if (!reachable(g, x)) return { ok: false, reason: 'unreachable' };
     if (![].concat(y).some(i => g.legions[i].le > 0)) return { ok: false, reason: 'empty' };
     return { ok: true };
   }
@@ -158,12 +176,8 @@
     const rf = Math.floor(g.rnd() * b.RO / 3); b.RO -= rf; b.n = 1; applyLosses(g, b);
     return { type: 'retreat', fled: rf };
   }
-  function acceptCapitulation(g, b) {                               // Zeilen 1450-1520
-    const t = g.tribes[b.x];
-    t.br = 5; t.vt = 1;
-    g.rv = Math.min(MAX_MONEY, g.rv + Math.floor(t.be / 2));
-    t.gr += Math.floor(t.be / 10); t.be -= Math.floor(t.be / 10);
-    t.tr = tributeBase(g, t); b.n = 0;
+  function acceptCapitulation(g, b, key = 'balanced') {
+    applyPeace(g, b.x, peaceOffer(g, b.x, key, 1)); b.n = 0;
     return { type: 'peace' };
   }
   function conquered(g, b) {                                        // Zeilen 1530-1555
@@ -173,7 +187,7 @@
     return { type: 'conquered', maxLoot: Math.floor(t.be * 2.3), prisoners: t.be };
   }
   // Beute (0..maxLoot) und Geiseln (0..Bevoelkerung) waehlen, Zeilen 1610-1800
-  function resolveConquest(g, b, loot, hostages) {
+  function resolveConquest(g, b, loot, hostages, tributeLevel = 0) {
     const t = g.tribes[b.x];
     loot = Math.max(0, Math.min(Math.floor(loot), Math.floor(t.be * 2.3)));
     hostages = Math.max(0, Math.min(Math.floor(hostages), t.be));
@@ -184,7 +198,8 @@
       t.ex = 1; t.br = 1000; t.vt = 1; angerAll(g, b.x); angerAll(g, b.x); destroyed = true;
     } else {
       if (hostages > t.be / 10) angerGroup(g, b.x);
-      t.gr += hostages; t.tr = Math.round(tributeBase(g, t) / 100) * 50; t.br = 4; t.vt = 1; t.be -= hostages;
+      const lvl = g.rules && g.rules.diplomacy ? Math.max(-1, Math.min(1, tributeLevel)) : 0;      // -1 niedrig, 0 normal, +1 hoch
+      t.gr += hostages; t.tr = Math.max(50, Math.round(tributeBase(g, t) * 0.5 * [0.5, 1, 2][lvl + 1] / 50) * 50); t.br = 4 - lvl; t.vt = 1; t.be -= hostages;
     }
     return { destroyed, loot, hostages };
   }
@@ -231,7 +246,7 @@
   // Teil 1 (Zeilen 3940-4150): Angriffe auf das Winterlager. Teil 2 (4160-4410): Haushalt.
   function winterAttack(g) {
     const hostile = [];
-    for (let i = 1; i <= N_TRIBES; i++) if (g.tribes[i].br < 1) hostile.push(i);
+    for (let i = 1; i <= N_TRIBES; i++) if (g.tribes[i].br < 1 && reachable(g, i)) hostile.push(i);
     if (!hostile.length) { g.kf = 0; return { attackers: [], loss: 0, size: null }; }
     g.tribes[hostile[0]].vt = 0;
     if (g.kf > 0) angerAll(g, g.lastX);
@@ -277,6 +292,14 @@
     L.le = L.le + info.hi + n; return L.le;
   }
 
+  // ---------------------------------------------------------------- Karte: Kontrolle und Reichweite (Regel map)
+  const controlled = (g, i) => { const t = g.tribes[i]; return !!t && (t.vt > 0 || !!t.ex); };
+  const neighborsOf = i => ADJ[i] || [];
+  // Erreichbar: Nachbar der Provinz oder eines kontrollierten Stammes (Friedensvertrag/Buendnis/vernichtet) bzw. selbst kontrolliert.
+  function reachable(g, i) {
+    if (!g.rules || !g.rules.map) return true;
+    return controlled(g, i) || PROV_ADJ.includes(i) || neighborsOf(i).some(n => controlled(g, n));
+  }
   // ---------------------------------------------------------------- Erweiterte Regeln (nicht im Original)
   // Reichtum: Groesse des Landes und Volksgruppe bestimmen den Tribut. Original: immer 1000 / 500 / +2000 / Grenze 4000.
   const WEALTH_MULT = [0.8, 1.0, 0.9, 1.3];                         // Belger, Gallier, Aquitaner, Volcer (romanisiert, Handel)
@@ -294,6 +317,38 @@
     if (n > 0) L.mv = Math.max(0, L.mv - 0);                        // Moral bleibt unveraendert
     return n;
   }
+  // ---- Diplomatie: Friedensbedingungen, Sondierung, Ultimatum (Regel diplomacy)
+  const TERMS = {
+    balanced: { label: 'Ausgewogen', h: 1, d: 1, t: 1, br: 5, text: 'Geiseln, Entschädigung und Tribut im üblichen Maß.' },
+    tribute: { label: 'Mehr Tribut', h: 0.5, d: 0.5, t: 2, br: 4, text: 'Doppelter Jahrestribut, dafür weniger Geiseln und Gold.' },
+    hostages: { label: 'Mehr Geiseln', h: 2.5, d: 0.5, t: 0.5, br: 4, text: 'Viele Geiseln (später Freiwillige), wenig Tribut und Gold.' },
+    gold: { label: 'Kriegsentschädigung', h: 0.5, d: 2, t: 0.5, br: 4, text: 'Doppelte Einmalzahlung, wenig Tribut und Geiseln.' },
+    mild: { label: 'Milder Friede', h: 0.25, d: 0.25, t: 0.5, br: 7, text: 'Wenig Forderungen, dafür bleibt der Stamm Rom gewogen (Haltung 7).' },
+  };
+  function peaceOffer(g, x, key = 'balanced', scale = 1) {
+    const t = g.tribes[x], T = (g.rules && g.rules.diplomacy && TERMS[key]) || TERMS.balanced;
+    return { key, br: T.br, hostages: Math.min(Math.floor(t.be / 4), Math.floor(t.be / 10 * T.h * scale)), denars: Math.floor(t.be / 2 * T.d * scale),
+      tribute: Math.max(50, Math.round(tributeBase(g, t) * T.t / 50) * 50) };
+  }
+  function applyPeace(g, x, offer) {
+    const t = g.tribes[x];
+    t.br = offer.br; t.vt = 1; g.rv = Math.min(MAX_MONEY, g.rv + offer.denars);
+    t.gr += offer.hostages; t.be -= offer.hostages; t.tr = offer.tribute;
+  }
+  // Ultimatum: Erfolgschance steigt mit der Uebermacht (Verbandstaerke gegen Krieger), mit guter Haltung, sinkt bei Kriegszustand.
+  function ultimatumChance(g, ys, x) {
+    const t = g.tribes[x], R = [].concat(ys).reduce((a, i) => a + g.legions[i].le, 0), Gw = x === g.vs ? g.ga : Math.floor(t.be / 5);
+    let p = (R / Math.max(1, Gw) - 1) / 1.5 + 0.02 * t.br; if (t.br === 0) p *= 0.6;
+    return Math.max(0, Math.min(0.9, p));
+  }
+  function ultimatum(g, ys, x) {
+    const t = g.tribes[x], p = ultimatumChance(g, ys, x); g.lastX = x;
+    if (g.rnd() < p) return { ok: true, chance: p };
+    if (t.br > 3) angerGroup(g, x);                                 // Drohung ohne Erfolg gilt wie ein Angriff
+    t.br = 0; t.vt = 0; t.tr = 0;
+    return { ok: false, chance: p };
+  }
+  function spendNegotiation(g, x) { g.vx += 1; g.negotiated.push(x); }
   // ---- Geiseln als Freiwillige: jaehrlich 5 % der Geiseln jedes Stammes schliessen sich kostenlos den Legionen an,
   // dienen 5 Jahre, kehren dann zu ihrem Stamm zurueck und erhalten den doppelten Anwerbebetrag (2 x MERC_COST).
   const SERVICE_YEARS = 5, VOLUNTEER_RATE = 0.05, DISCHARGE_PAY = 2 * 3;
@@ -338,6 +393,6 @@
   const API = { createGame, beginYear, nextYear, pacified, checkVictory, attitudeLabel,
     canNegotiate, negotiate, negotiationOptions, attackCheck, beginBattle, stepBattle, retreat,
     acceptCapitulation, resolveConquest, finishBattle, payLegion, payLegions, moveLegion,
-    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, MERC_COST, MAX_LEGION, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
+    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, reachable, controlled, neighborsOf, TERMS, peaceOffer, applyPeace, ultimatumChance, ultimatum, spendNegotiation, MERC_COST, MAX_LEGION, tributeBase, wealthStars, wealthFactor, levyVolunteers, veteranCount, SERVICE_YEARS, VOLUNTEER_RATE, DISCHARGE_PAY };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.JC = API;
 })(typeof window !== 'undefined' ? window : globalThis);

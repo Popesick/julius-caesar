@@ -32,10 +32,21 @@
   main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; padding: 12px; height: calc(100% - 58px); }
   .mapwrap { background: var(--sea); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; min-height: 0; position: relative; }
   svg#map { width: 100%; height: 100%; display: block; }
-  .land { fill: var(--land); stroke: #7a6a50; stroke-width: .35; stroke-linejoin: round; }
+  .land { fill: var(--land); stroke: #8a7a5c; stroke-width: .3; stroke-linejoin: round; }
+  .brit { fill: #3f3829; stroke: #6f6249; stroke-width: .25; stroke-linejoin: round; }
+  .prov { fill: rgba(150, 60, 70, .22); stroke: rgba(200, 100, 110, .55); stroke-width: .25; stroke-dasharray: 1.2 .6; }
+  .river { fill: none; stroke: #4f86a8; stroke-width: .35; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
+  .mount { fill: #5a4d39; stroke: #8f7f62; stroke-width: .15; }
+  .geo { font-size: 1.35px; fill: rgba(240, 230, 210, .38); font-style: italic; text-anchor: middle; pointer-events: none; letter-spacing: .08em; }
+  .edge { stroke: rgba(240, 230, 210, .22); stroke-width: .18; stroke-dasharray: .7 .5; }
+  .edge.open { stroke: rgba(240, 215, 140, .5); stroke-width: .25; }
+  .camp { fill: #8b1f1a; stroke: var(--gold); stroke-width: .25; }
+  .tribe.far circle.body { opacity: .4; stroke-dasharray: .8 .5; }
+  .tribe.far text { opacity: .5; }
+  .farnote { background: #3a2622; border: 1px solid #7a3a30; border-radius: 8px; padding: 6px 10px; margin: 6px 0; font-size: 13px; }
   .lager { fill: none; stroke: var(--mute); stroke-width: .3; stroke-dasharray: 1 .7; }
   .tribe { cursor: pointer; }
-  .tribe circle.body { stroke-width: .55; transition: fill .2s; }
+  .tribe circle.body { stroke-width: .5; transition: fill .2s; }
   .tribe:focus { outline: none; }
   .tribe.sel circle.halo, .tribe:focus-visible circle.halo { opacity: 1; }
   .tribe circle.halo { fill: none; stroke: #fff; stroke-width: .35; opacity: 0; }
@@ -82,6 +93,38 @@
   .vs .n { font-size: 24px; font-variant-numeric: tabular-nums; }
   .vs .nm { font-size: 13px; color: var(--mute); }
   .good { color: #8fd18f; } .bad { color: #f08a80; }
+  .screen { position: fixed; inset: 0; z-index: 40; background: #0e0b08; overflow: auto; display: flex; flex-direction: column; }
+  .screen[hidden] { display: none; }
+  .scrbg { position: absolute; inset: 0; background-size: cover; background-position: center; filter: saturate(1.05); }
+  .scrfade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,7,4,.7) 0%, rgba(10,7,4,.2) 32%, rgba(10,7,4,.55) 62%, rgba(10,7,4,.92) 100%); }
+  .titlebox { position: relative; margin: auto; padding: 32px 20px 28px; width: min(760px, 100%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .kicker { letter-spacing: .32em; text-transform: uppercase; font-size: 13px; color: #f3e8c6; text-shadow: 0 0 10px #000, 0 0 4px #000, 0 1px 3px #000; font-weight: 600; background: rgba(10,7,4,.45); padding: 4px 14px; border-radius: 999px; }
+  .titlebox h1 { margin: 6px 0 0; font: 700 clamp(44px, 9vw, 96px)/1 "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif; letter-spacing: .12em; color: #f3dc9a; text-shadow: 0 2px 0 #7a5a1c, 0 6px 26px rgba(0,0,0,.85); }
+  .subtitle { font: italic 400 clamp(20px, 3.4vw, 30px)/1.2 "Palatino Linotype", Georgia, serif; color: #f0e6d2; text-shadow: 0 2px 10px #000; margin-bottom: 26px; }
+  .menu { display: flex; flex-direction: column; gap: 10px; width: min(340px, 100%); }
+  .menu button, .bigbtn { font-size: 18px; padding: 13px 20px; border-radius: 10px; background: rgba(38,31,25,.82); backdrop-filter: blur(3px); border: 1px solid #8a7340; letter-spacing: .04em; }
+  .menu button.primary, .bigbtn.primary { background: linear-gradient(180deg, #a07a24, #6d4f14); border-color: #e0c06a; color: #fff6dc; font-weight: 600; }
+  .credit { margin-top: 26px; font-size: 12.5px; color: #cdbf9f; text-shadow: 0 1px 4px #000; max-width: 560px; }
+  .setupbox { position: relative; width: min(1100px, 100%); margin: auto; padding: 28px 20px; display: flex; flex-direction: column; gap: 18px; }
+  .setupbox h2 { margin: 0; font: 700 clamp(28px, 5vw, 44px)/1.1 "Palatino Linotype", Georgia, serif; color: #f3dc9a; letter-spacing: .06em; }
+  .setupbox .lead { color: var(--mute); margin: 4px 0 0; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .panel { background: rgba(30,24,19,.9); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .panel h3 { margin: 0 0 10px; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+  .cards { display: flex; flex-direction: column; gap: 8px; }
+  label.card { display: block; position: relative; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  label.card input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  label.card:hover { border-color: #8a7340; }
+  label.card:has(input:checked) { border-color: var(--gold); background: #3a2f1c; box-shadow: 0 0 0 1px var(--gold) inset; }
+  label.card:has(input:focus-visible) { outline: 2px solid var(--gold); outline-offset: 2px; }
+  label.card b { font-size: 16px; } label.card .lv { color: var(--gold); margin-right: 8px; font-variant-numeric: tabular-nums; }
+  label.card .d { display: block; color: var(--mute); font-size: 13.5px; margin-top: 2px; }
+  .feat { display: grid; gap: 6px; margin-top: 12px; }
+  .feat label { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,.18); }
+  .feat label span small { display: block; color: var(--mute); font-size: 12.5px; }
+  .feat.off { opacity: .45; }
+  .setupbtns { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } }
   @media (max-width: 900px) {
     main { grid-template-columns: 1fr; height: auto; }
     .mapwrap { height: auto; min-height: 0; }
@@ -99,6 +142,7 @@
     <span class="chip">Vermögen <b id="cMoney">0</b> Denare</span>
     <span class="chip">Befriedet <b id="cPac">0</b>/30</span>
     <span class="chip">Stärke <b id="cSp">1</b></span>
+    <span class="chip">Modus <b id="cMode">Original</b></span>
   </div>
   <div class="tools">
     <button id="bMusic" aria-pressed="true" title="Musik (Platzhalter)">♪</button>
@@ -109,12 +153,13 @@
 </header>
 <main>
   <div class="mapwrap">
-    <svg id="map" viewBox="-6 -4 82 74" role="img" aria-label="Karte Galliens mit 30 Stämmen"></svg>
+    <svg id="map" viewBox="-3 -3 80 75" role="img" aria-label="Karte Galliens mit 30 Stämmen"></svg>
     <div class="legend" aria-hidden="true">
       <span><i style="background:var(--hostile)"></i>im Krieg</span><span><i style="background:var(--free)"></i>frei</span>
       <span><i style="background:var(--peace)"></i>Frieden</span><span><i style="background:var(--ally)"></i>Freundschaft</span>
       <span><i style="background:var(--g0)"></i>Belger</span><span><i style="background:var(--g1)"></i>Gallier</span>
       <span><i style="background:var(--g2)"></i>Aquitaner</span><span><i style="background:var(--g3)"></i>Volcer</span>
+      <span style="grid-column: span 4"><i style="background:transparent;border:1px dashed var(--mute)"></i>blasse Stämme: außer Reichweite (erst Nachbarn befrieden)</span>
     </div>
   </div>
   <aside>
@@ -125,18 +170,47 @@
     <section class="card"><h2>Chronik</h2><ol id="log" reversed></ol></section>
   </aside>
 </main>
+<div id="title" class="screen" hidden>
+  <div class="scrbg" style="background-image:url(assets/titel.jpg)"></div><div class="scrfade"></div>
+  <div class="titlebox">
+    <div class="kicker">Gallien · 58 – 50 v. Chr.</div>
+    <h1>JULIUS CAESAR</h1>
+    <div class="subtitle">Der Gallische Krieg</div>
+    <div class="menu">
+      <button id="tNew" class="primary">Neues Spiel</button>
+      <button id="tLoad">Spielstand laden</button>
+      <button id="tHelp">Regeln und Taktik</button>
+    </div>
+    <div class="credit">Fan-Nachbau nach dem C64-Klassiker von Kingsoft (1989), per Reverse Engineering rekonstruiert. Code und Bilder sind neu.</div>
+  </div>
+</div>
+<div id="setup" class="screen" hidden>
+  <div class="scrbg" style="background-image:url(assets/standarten.jpg); opacity:.22"></div>
+  <div class="setupbox">
+    <div><h2>Feldzug vorbereiten</h2><p class="lead">Wähle Schwierigkeitsgrad und Spielmodus. Danach beginnt dein Statthalteramt in der Provinz.</p></div>
+    <div class="cols">
+      <section class="panel"><h3>Schwierigkeitsgrad</h3><div class="cards" id="spCards"></div></section>
+      <section class="panel"><h3>Spielmodus</h3>
+        <div class="cards" id="modeCards"></div>
+        <div class="feat" id="feat"></div>
+      </section>
+    </div>
+    <div class="setupbtns"><button id="sBack" class="bigbtn">Zurück</button><button id="sGo" class="bigbtn primary">Feldzug beginnen</button></div>
+  </div>
+</div>
 <dialog id="dlg"></dialog>
 
 <script src="data.js"></script>
 <script src="engine.js"></script>
 <script src="music.js"></script>
+<script src="map.js"></script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
 const nf = n => Math.round(n).toLocaleString('de-DE');
 const ROMAN = ['', 'I', 'II', 'III', 'IV'];
 let G = null, sel = 0, actLegion = 1, busy = false;
-const SAVE_KEY = 'julius-caesar-remake-v1';
+const SAVE_KEY = 'julius-caesar-remake-v2';
 const SP_TEXT = {
   1: 'Normal: Startwerte wie in den Daten, 1 Unruheherd pro Jahr.',
   2: 'Alle Stämme starten 1 Haltung schlechter, 2 Unruheherde pro Jahr.',
@@ -180,17 +254,34 @@ const NS = 'http://www.w3.org/2000/svg';
 const svg = $('#map');
 const mk = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.append(e); return e; };
 const GCOL = ['var(--g0)', 'var(--g1)', 'var(--g2)', 'var(--g3)'];
+function pts(arr) { return arr.map(([la, lo]) => { const p = proj(la, lo); return p.x + ',' + p.y; }).join(' '); }
+function drawRange(arr, parent) {                                   // Dreiecke entlang einer Linie
+  for (let i = 0; i < arr.length - 1; i++) {
+    const a = proj(...arr[i]), b = proj(...arr[i + 1]), len = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(1, Math.round(len / 1.7));
+    for (let k = 0; k <= n; k++) { const x = a.x + (b.x - a.x) * k / n, y = a.y + (b.y - a.y) * k / n + (k % 2 ? .5 : -.4);
+      mk('polygon', { class: 'mount', points: `${x - .85},${y + .6} ${x},${y - .9} ${x + .85},${y + .6}` }, parent); }
+  }
+}
+let edgeEls = [];
 function buildMap() {
   svg.innerHTML = '';
-  mk('polygon', { class: 'land', points: '4,12 12,9 22,5 34,3 44,0 56,2 66,6 71,14 71,30 69,40 63,48 59,56 55,62 47,66 36,66 24,62 14,60 8,56 3,52 0,44 2,34 0,24 2,16' }, svg);
-  mk('rect', { class: 'lager', x: 61.5, y: 56.5, width: 8, height: 7, rx: 1 }, svg);
-  const lt = mk('text', { x: 65.5, y: 66, 'font-size': 1.5, fill: 'var(--mute)', 'text-anchor': 'middle' }, svg); lt.textContent = 'Provincia · Lager';
+  mk('rect', { x: -3, y: -3, width: 80, height: 75, fill: 'var(--sea)' }, svg);
+  mk('polygon', { class: 'land', points: pts(GEO.continent) }, svg);
+  mk('polygon', { class: 'brit', points: pts(GEO.britain) }, svg);
+  mk('polygon', { class: 'prov', points: pts(GEO.provincia) }, svg);
+  for (const r of Object.values(GEO.ranges)) drawRange(r, svg);
+  for (const r of Object.values(GEO.rivers)) mk('polyline', { class: 'river', points: pts(r) }, svg);
+  for (const [name, la, lo] of GEO.labels) { const p = proj(la, lo); mk('text', { class: 'geo', x: p.x, y: p.y }, svg).textContent = name; }
+  edgeEls = [];
+  for (const [a, b] of NEIGHBORS) { const A = G.tribes[a], B = G.tribes[b]; edgeEls.push([mk('line', { class: 'edge', x1: A.x, y1: A.y, x2: B.x, y2: B.y }, svg), a, b]); }
+  const cp = LEGION_START; mk('rect', { class: 'camp', x: cp.x - 1.1, y: cp.y - .8, width: 2.2, height: 1.6, rx: .25 }, svg);
+  mk('text', { class: 'geo', x: cp.x, y: cp.y + 2.6, style: 'fill:rgba(240,230,210,.7)' }, svg).textContent = 'Lager';
   for (const t of G.tribes.slice(1)) {
     const g = mk('g', { class: 'tribe', tabindex: 0, role: 'button', 'data-id': t.id, 'aria-label': t.name }, svg);
-    const r = 1.2 + 1.9 * Math.sqrt(JC_POP[t.id] / 256230);
-    mk('circle', { class: 'halo', cx: t.x, cy: t.y, r: r + 1 }, g);
+    const r = 0.9 + 1.5 * Math.sqrt(JC_POP[t.id] / 256230);
+    mk('circle', { class: 'halo', cx: t.x, cy: t.y, r: r + .9 }, g);
     mk('circle', { class: 'body', cx: t.x, cy: t.y, r, stroke: GCOL[t.group] }, g);
-    const tx = mk('text', { x: t.x, y: t.y + r + 1.9 }, g); tx.textContent = t.name;
+    const tx = mk('text', { x: t.x, y: t.y + r + 1.6 }, g); tx.textContent = t.name;
     g.addEventListener('click', () => select(t.id));
     g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(t.id); } });
   }
@@ -204,8 +295,10 @@ function renderMap() {
     const t = G.tribes[+g.dataset.id], st = tribeState(t);
     g.querySelector('.body').setAttribute('fill', `var(--${st === 'dead' ? 'dead' : st})`);
     g.classList.toggle('sel', t.id === sel);
-    g.setAttribute('aria-label', `${t.name}, ${STATE_LABEL[st]}`);
+    g.classList.toggle('far', !JC.reachable(G, t.id));
+    g.setAttribute('aria-label', `${t.name}, ${STATE_LABEL[st]}${JC.reachable(G, t.id) ? '' : ', außer Reichweite'}`);
   });
+  for (const [el, a, b] of edgeEls) el.classList.toggle('open', JC.controlled(G, a) || JC.controlled(G, b));
   const layer = $('#legionLayer'); layer.innerHTML = '';
   const byPos = {};
   for (let i = 1; i <= 4; i++) { const L = G.legions[i], k = L.x + ',' + L.y; (byPos[k] = byPos[k] || []).push(i); }
@@ -213,7 +306,7 @@ function renderMap() {
     const arr = byPos[k], [x, y] = k.split(',').map(Number);
     arr.forEach((i, n) => {
       const L = G.legions[i], g = mk('g', { class: 'legion' + (L.le ? '' : ' dead') + (i === actLegion ? ' act' : '') }, layer);
-      const cx = x + (n - (arr.length - 1) / 2) * 2.1, cy = y - 3.1;
+      const cx = x + (n - (arr.length - 1) / 2) * 2.1, cy = y - 2.9;
       mk('rect', { x: cx - 0.95, y: cy - 0.95, width: 1.9, height: 1.9, rx: .3 }, g);
       mk('text', { x: cx, y: cy + .55 }, g).textContent = ROMAN[i];
     });
@@ -223,7 +316,7 @@ function renderMap() {
 /* ---------- Seitenleiste ---------- */
 function bar(v, max, cls = '') { return `<div class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, v / max * 100))}%"></i></div>`; }
 function renderSide() {
-  $('#cYear').textContent = G.year; $('#cMoney').textContent = nf(G.rv); $('#cPac').textContent = JC.pacified(G); $('#cSp').textContent = G.sp;
+  $('#cYear').textContent = G.year; $('#cMoney').textContent = nf(G.rv); $('#cPac').textContent = JC.pacified(G); $('#cSp').textContent = G.sp; $('#cMode').textContent = modeName(G.rules);
   const lg = $('#legions'); lg.innerHTML = '';
   for (let i = 1; i <= 4; i++) {
     const L = G.legions[i], d = document.createElement('div'); d.className = 'lg';
@@ -234,7 +327,8 @@ function renderSide() {
   }
   const c = $('#tribeCard');
   if (!sel) { c.innerHTML = '<h2>Stamm wählen</h2><p class="hint">Wähle einen Stamm auf der Karte, um Informationen zu sehen, zu verhandeln oder eine Legion zu entsenden.</p>'; return; }
-  const t = G.tribes[sel], st = tribeState(t), nego = JC.canNegotiate(G, sel);
+  const t = G.tribes[sel], st = tribeState(t), nego = JC.canNegotiate(G, sel), reach = JC.reachable(G, sel);
+  const nbs = JC.neighborsOf(sel).map(i => `<span title="${STATE_LABEL[tribeState(G.tribes[i])]}">${G.tribes[i].name}${JC.controlled(G, i) ? ' ✔' : ''}</span>`).join(', ');
   const att = t.ex ? '–' : JC.attitudeLabel(t.br);
   c.innerHTML = `<h2>${t.name}</h2><div class="hint">${GROUPS[t.group]} · ${STATE_LABEL[st]}</div>
     ${t.ex ? '<p>Dieser Stamm wurde von Rom vernichtet.</p>' : `
@@ -242,12 +336,14 @@ function renderSide() {
     <dt>Haltung zu Rom</dt><dd>${att} (${t.br})</dd><dt>Geiseln in Rom</dt><dd>${nf(t.gr)}</dd>
     <dt>Tribut pro Jahr</dt><dd>${nf(t.tr)}</dd>${G.rules && G.rules.wealth ? `<dt>Reichtum</dt><dd title="Tribut bei Frieden: ${nf(JC.tributeBase(G, t))}">${'★'.repeat(JC.wealthStars(G, t))}${'☆'.repeat(5 - JC.wealthStars(G, t))} · ${nf(JC.tributeBase(G, t))}</dd>` : ''}<dt>Kriege gegen Rom</dt><dd>${t.rk}</dd><dt>Röm. Niederlagen</dt><dd>${t.rk - t.rs}</dd>
     ${t.vt === 2 ? '<dt>Hilfstruppen</dt><dd>1000/Jahr</dd>' : ''}</dl>${bar(Math.min(t.br, 12), 12, t.br === 0 ? 'red' : t.br > 10 ? 'blue' : '')}`}
+    ${reach ? '' : `<div class="farnote"><b>Außer Reichweite.</b> Befriede zuerst einen Nachbarstamm, um hierher zu gelangen.</div>`}
+    <p class="hint" style="margin:4px 0">Nachbarn: ${nbs}</p>
     <div class="row">
       <button id="bNego" ${t.ex || !nego || busy ? 'disabled' : ''}>Verhandeln (${5 - G.vx} übrig)</button>
     </div>
     <h3>Legion entsenden</h3>
-    <div class="row">${[1, 2, 3, 4].map(i => `<button data-send="${i}" ${busy ? 'disabled' : ''}>${ROMAN[i]} · ${nf(G.legions[i].le)}</button>`).join('')}</div>
-    ${G.rules && G.rules.combined ? `<div class="row"><button id="bJoint" class="danger" ${busy ? 'disabled' : ''}>Gemeinsamer Angriff …</button></div>` : ''}`;
+    <div class="row">${[1, 2, 3, 4].map(i => `<button data-send="${i}" ${busy || !reach ? 'disabled' : ''}>${ROMAN[i]} · ${nf(G.legions[i].le)}</button>`).join('')}</div>
+    ${G.rules && G.rules.combined ? `<div class="row"><button id="bJoint" class="danger" ${busy || !reach ? 'disabled' : ''}>Gemeinsamer Angriff …</button></div>` : ''}`;
   const jb = $('#bJoint'); if (jb) jb.onclick = () => jointFlow(sel);
   const nb = $('#bNego'); if (nb) nb.onclick = () => negotiateFlow(sel);
   c.querySelectorAll('[data-send]').forEach(b => b.onclick = () => { actLegion = +b.dataset.send; sendLegion(+b.dataset.send, sel); });
@@ -278,6 +374,7 @@ async function negotiateFlow(x) {
     mount: api => api.el.querySelectorAll('[data-sa]').forEach(b => b.addEventListener('click', () => api.close(+b.dataset.sa))),
   });
   if (!pick) return;
+  if (pick === 9) { await ultimatumFlow(x); renderAll(); return; }
   let amount = 0;
   if (pick === 2) { amount = await askNumber({ title: 'Geldzuwendung', html: `<p>Wie viele Denare schickst du den ${t.name}?</p>`, max: G.rv, label: 'Senden', unit: 'Denare' }); }
   const r = JC.negotiate(G, x, pick, amount);
@@ -288,6 +385,35 @@ async function negotiateFlow(x) {
 }
 
 /* ---------- Legion entsenden / Kampf ---------- */
+async function termsDialog(x, scale, title) {
+  if (!(G.rules && G.rules.diplomacy)) return 'balanced';
+  const t = G.tribes[x];
+  return ask({ title: title || 'Friedensbedingungen', img: 'caesar',
+    html: `<p>Welche Bedingungen stellst du den ${t.name}?</p><div class="opt">${Object.keys(JC.TERMS).map(k => { const o = JC.peaceOffer(G, x, k, scale);
+      return `<button data-k="${k}"><b>${JC.TERMS[k].label}</b><br><span class="hint">${JC.TERMS[k].text}<br>Gold ${nf(o.denars)} · Geiseln ${nf(o.hostages)} · Tribut ${nf(o.tribute)}/Jahr · Haltung ${o.br}</span></button>`; }).join('')}</div>`,
+    buttons: [], mount: api => api.el.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => api.close(b.dataset.k))) });
+}
+async function ultimatumResolve(ys, x) {
+  const t = G.tribes[x]; const u = JC.ultimatum(G, ys, x); G.vs = 0;
+  if (u.ok) {
+    const key = await termsDialog(x, 0.5, `Die ${t.name} beugen sich`);
+    const offer = JC.peaceOffer(G, x, key, 0.5); JC.applyPeace(G, x, offer); JC.moveLegion(G, ys, x); JC.checkVictory(G);
+    log(`Ultimatum an die ${t.name}: sie beugen sich ohne Kampf`);
+    await note('Ultimatum erfolgreich', `<p>Die ${t.name} beugen sich der Übermacht, ohne dass Waffen sprechen.</p><dl><dt>Gold</dt><dd>${nf(offer.denars)}</dd><dt>Geiseln</dt><dd>${nf(offer.hostages)}</dd><dt>Tribut</dt><dd>${nf(offer.tribute)}/Jahr</dd></dl>`, 'Weiter', 'legionaer');
+    if (G.over === 'win') await endGame();
+  } else {
+    log(`Ultimatum an die ${t.name} abgelehnt`);
+    await note('Ultimatum abgelehnt', `<p>Die ${t.name} lassen sich nicht einschüchtern und rüsten zum Krieg (Haltung 0).${t.br === 0 && false ? '' : ''}</p><p class="hint">Eine erfolglose Drohung wirkt auf die Volksgruppe wie ein Angriff.</p>`, 'Weiter', 'reiter');
+  }
+}
+async function ultimatumFlow(x) {
+  const t = G.tribes[x], ys = [1, 2, 3, 4].filter(i => G.legions[i].le > 0), total = ys.reduce((a, i) => a + G.legions[i].le, 0), p = JC.ultimatumChance(G, ys, x);
+  const go = await ask({ title: `Ultimatum an die ${t.name}`, img: 'legionaer',
+    html: `<p>Du drohst mit dem Einmarsch aller Legionen (<b>${nf(total)}</b> Mann) gegen <b>${nf(G.vs === x ? G.ga : t.be / 5)}</b> Krieger.</p><p>Geschätzte Chance, dass sich der Stamm beugt: <b>${Math.round(p * 100)} %</b>. Bei Übermacht knickt der Gegner ein, bevor Waffen sprechen.</p><p class="hint bad">Bei Ablehnung ist der Stamm im Krieg mit Rom${t.br > 3 ? ' und seine Volksgruppe wird erzürnt' : ''}.</p>`,
+    buttons: [{ label: 'Abbrechen', value: false }, { label: 'Ultimatum stellen', value: true, cls: 'danger' }] });
+  if (!go) return;
+  JC.spendNegotiation(G, x); await ultimatumResolve(ys, x);
+}
 const ROMANS = ys => { const r = ys.map(i => ROMAN[i]); return (r.length > 1 ? r.slice(0, -1).join(', ') + ' und ' + r[r.length - 1] : r[0]) + (ys.length > 1 ? '. Legion (Verband)' : '. Legion'); };
 async function jointFlow(x) {
   if (busy) return; const t = G.tribes[x];
@@ -309,8 +435,8 @@ async function sendLegion(ysIn, x) {
   try {
     const t = G.tribes[x], total = ys.reduce((a, i) => a + G.legions[i].le, 0), chk = JC.attackCheck(G, ys, x);
     if (!chk.ok) {
-      const why = { destroyed: 'Diese Stadt ist schon vernichtet!', treaty: 'Du hast einen Friedensvertrag mit diesem Volk unterschrieben!', empty: `${ys.length > 1 ? 'Diese Legionen haben' : 'Die ' + ROMAN[y] + '. Legion hat'} keine Soldaten mehr.` }[chk.reason];
-      JC.moveLegion(G, ys, x); G.vs = 0; await note('Kein Angriff möglich', `<p>${why}</p><p class="hint">Die Legion bezieht Stellung bei den ${t.name}.</p>`); return;
+      const why = { destroyed: 'Diese Stadt ist schon vernichtet!', treaty: 'Du hast einen Friedensvertrag mit diesem Volk unterschrieben!', unreachable: 'Dieser Stamm liegt außer Reichweite: Es fehlt ein befriedeter Nachbar als Stützpunkt.', empty: `${ys.length > 1 ? 'Diese Legionen haben' : 'Die ' + ROMAN[y] + '. Legion hat'} keine Soldaten mehr.` }[chk.reason];
+      if (chk.reason !== 'unreachable') JC.moveLegion(G, ys, x); G.vs = 0; await note('Kein Angriff möglich', `<p>${why}</p>${chk.reason === 'unreachable' ? '' : `<p class="hint">Die Legion bezieht Stellung bei den ${t.name}.</p>`}`); return;
     }
     const as = JC.assess(G, ys, x, 120);
     const act = await ask({
@@ -318,8 +444,9 @@ async function sendLegion(ysIn, x) {
       html: `<dl><dt>Bevölkerung</dt><dd>${nf(t.be)}</dd><dt>Krieger${G.vs === x ? ' (Belagerung läuft)' : ''}</dt><dd>${nf(G.vs === x ? G.ga : t.be / 5)}</dd><dt>${ys.length > 1 ? 'Eigener Verband' : 'Eigene Legion'}</dt><dd>${nf(total)} Mann</dd></dl>
         <p class="hint"><b>Lageeinschätzung der Offiziere</b> (${ys.length > 1 ? 'Verband' : 'eine Legion allein'}): Kapitulation ${as.capitulation} % · Eroberung ${as.conquered} % · Niederlage ${as.defeat} % — erwartete Verluste ${nf(as.loss)} Mann, Feindverluste ${nf(as.theirLoss)}.${as.defeat > 60 ? ` <span class="bad">${ys.length > 1 ? 'Dieser Verband' : 'Diese Legion allein'} wird zerschellen.${G.rules && G.rules.combined && ys.length < 4 ? ' Ein gemeinsamer Angriff mit mehr Legionen verbessert die Lage stark.' : ''}</span>` : ''}</p>
         ${t.br > 3 ? `<p class="hint">Achtung: Der Angriff auf einen Stamm, der Rom nicht feindlich gesinnt ist, erzürnt seine Volksgruppe (${GROUPS[t.group]}).</p>` : ''}`,
-      buttons: [{ label: 'Weiterziehen', value: 'move' }, { label: 'Angreifen', value: 'attack', cls: 'danger' }],
+      buttons: [{ label: 'Weiterziehen', value: 'move' }, ...(G.rules && G.rules.diplomacy && t.vt === 0 ? [{ label: `Ultimatum (${Math.round(JC.ultimatumChance(G, ys, x) * 100)} %)`, value: 'ultimatum' }] : []), { label: 'Angreifen', value: 'attack', cls: 'danger' }],
     });
+    if (act === 'ultimatum') { await ultimatumResolve(ys, x); return; }
     if (act === 'move') { JC.moveLegion(G, ys, x); G.vs = 0; log(`${ROMANS(ys)} bei den ${t.name}`); return; }
     let res = await battle(ys, x);
     const used = new Set(ys);
@@ -362,7 +489,7 @@ async function battle(ysIn, x) {
         buttons: [{ label: 'Weiterkämpfen', value: 'fight' }, { label: 'Annehmen', value: 'accept', cls: 'primary' }],
       });
       if (!dlg.open) dlg.showModal();
-      if (ans === 'accept') { JC.acceptCapitulation(G, b); ev = { type: 'peace' }; break; }
+      if (ans === 'accept') { const key = await termsDialog(x, 1, 'Friedensbedingungen'); JC.acceptCapitulation(G, b, key); ev = { type: 'peace' }; break; }
       b.KA += 1; dlg.innerHTML = ''; battleChrome(t, b); wantRetreat = false; $('#bRet').onclick = () => { wantRetreat = true; }; show(); continue;
     }
     break;
@@ -372,12 +499,14 @@ async function battle(ysIn, x) {
   if (ev.type === 'retreat') text = `Rückzug Roms. Davon ${nf(ev.fled)} Mann während des Rückzugs verloren.`;
   if (ev.type === 'flee') text = `Die Römer fliehen! Davon ${nf(ev.fled)} Mann auf der Flucht verloren.`;
   if (ev.type === 'lost') text = 'Die Legion ist aufgerieben. Rom unterliegt.';
-  if (ev.type === 'peace') text = `Friede mit den ${t.name}. Tribut ${nf(JC.tributeBase(G, t))} Denare pro Jahr.`;
+  if (ev.type === 'peace') text = `Friede mit den ${t.name}. Tribut ${nf(G.tribes[x].tr)} Denare pro Jahr.`;
   let conquest = null;
   if (ev.type === 'conquered') {
     const loot = await askNumber({ title: 'Die Stadt ist erobert!', img: 'legionaer', html: `<p>Beute: bis zu ${nf(ev.maxLoot)} Denare. Mehr als die Hälfte erzürnt die Volksgruppe.</p>`, max: ev.maxLoot, value: Math.floor(ev.maxLoot / 2), label: 'Beute nehmen', unit: 'Denare' });
     const host = await askNumber({ title: 'Geiseln', img: 'legionaer', html: `<p>Gefangene: ${nf(ev.prisoners)}. Mehr als 10 % erzürnt die Volksgruppe. <b>Alle</b> als Geiseln zu nehmen vernichtet den Stamm und verärgert ganz Gallien.</p>`, max: ev.prisoners, value: Math.floor(ev.prisoners / 10), label: 'Geiseln nehmen', unit: 'Personen' });
-    conquest = JC.resolveConquest(G, b, loot, host);
+    let lvl = 0;
+    if (G.rules && G.rules.diplomacy && host < ev.prisoners) lvl = await ask({ title: 'Höhe des Tributs', img: 'caesar', html: `<p>Welchen Jahrestribut legst du den ${t.name} auf?</p><div class="opt"><button data-l="-1"><b>Niedrig</b><br><span class="hint">Halber Tribut, Haltung 5 (zufriedener)</span></button><button data-l="0"><b>Normal</b><br><span class="hint">Üblicher Tribut, Haltung 4</span></button><button data-l="1"><b>Hoch</b><br><span class="hint">Doppelter Tribut, Haltung 3 (bitterer)</span></button></div>`, buttons: [], mount: api => api.el.querySelectorAll('[data-l]').forEach(b => b.addEventListener('click', () => api.close(+b.dataset.l))) });
+    conquest = JC.resolveConquest(G, b, loot, host, lvl);
     text = conquest.destroyed ? `Die ${t.name} sind vernichtet. Ganz Gallien ist erschüttert.` : `Die ${t.name} sind unterworfen: ${nf(conquest.hostages)} Geiseln, ${nf(conquest.loot)} Denare Beute.`;
   }
   const fin = JC.finishBattle(G, b);
@@ -432,6 +561,7 @@ async function winter() {
     save(true);
     JC.nextYear(G); G.vs = 0; sel = 0;
     log('Ein neues Jahr beginnt. Unruhe regt sich in Gallien.');
+    if (G.unrest && G.unrest.length) log('Unruhe breitet sich aus: ' + G.unrest.slice(0, 4).map(u => `${G.tribes[u.from].name} → ${G.tribes[u.to].name}`).join(', ') + (G.unrest.length > 4 ? ' …' : ''));
   } finally { busy = false; renderAll(); if (!G.over) Music.play('map'); }
 }
 
@@ -460,21 +590,53 @@ function load() {
   } catch (e) { return false; }
 }
 function begin() { buildMap(); renderAll(); Music.play('map'); }
+const FEATURES = [
+  ['map', 'Historische Karte', 'Stämme an ihrer wahren Stelle; nur Stämme in Reichweite sind erreichbar, Unruhe breitet sich aus.'],
+  ['diplomacy', 'Erweiterte Diplomatie', 'Friedensbedingungen wählen, Sondierung, Ultimatum, zusätzliche Geiseln.'],
+  ['mercs', 'Söldner anwerben', 'Legionen jederzeit auffüllen (3 Denare pro Mann).'],
+  ['combined', 'Gemeinsamer Angriff', 'Mehrere Legionen kämpfen als Verband.'],
+  ['wealth', 'Reichtum bestimmt Tribut', 'Große, reiche Stämme zahlen mehr.'],
+  ['slaves', 'Geiseln als Freiwillige', '5 % der Geiseln dienen 5 Jahre in den Legionen.'],
+];
+const SP_NAMES = ['', 'Rekrut', 'Veteran', 'Zenturio', 'Legat', 'Imperator'];
+function modeName(r) { const v = FEATURES.map(f => !!(r && r[f[0]])); return v.every(x => x) ? 'Enhanced' : v.some(x => x) ? 'Eigene Wahl' : 'Original'; }
+function hideScreens() { document.querySelectorAll('.screen').forEach(e => e.hidden = true); }
+function showScreen(id) { hideScreens(); const e = document.getElementById(id); e.hidden = false; e.scrollTop = 0; const f = e.querySelector('button, input'); if (f) f.focus(); }
+function titleScreen() {
+  let hasSave = false; try { hasSave = !!localStorage.getItem(SAVE_KEY); } catch (e) {}
+  $('#tLoad').hidden = !hasSave; showScreen('title');
+  return new Promise(res => { for (const [id, v] of [['tNew', 'new'], ['tLoad', 'load'], ['tHelp', 'help']]) document.getElementById(id).onclick = () => res(v); });
+}
+function setupScreen() {
+  let sp = 1, mode = 'enhanced'; const on = Object.fromEntries(FEATURES.map(f => [f[0], true]));
+  const cards = $('#spCards'), modes = $('#modeCards'), feat = $('#feat');
+  cards.innerHTML = [1, 2, 3, 4, 5].map(i => `<label class="card"><input type="radio" name="sp" value="${i}" ${i === 1 ? 'checked' : ''}><b><span class="lv">${i}</span>${SP_NAMES[i]}</b><span class="d">${SP_TEXT[i]}</span></label>`).join('');
+  modes.innerHTML = `<label class="card"><input type="radio" name="mode" value="original"><b>Original</b><span class="d">Die Regeln des C64-Spiels von 1989: Verstärkung nur im Winter, Legionen einzeln, Stämme ohne Karte.</span></label>
+    <label class="card"><input type="radio" name="mode" value="enhanced" checked><b>Enhanced</b><span class="d">Der Nachbau mit allen Erweiterungen. Einzelne Regeln lassen sich unten abwählen.</span></label>`;
+  const paint = () => {
+    feat.className = 'feat' + (mode === 'original' ? ' off' : '');
+    feat.innerHTML = FEATURES.map(([k, n, d]) => `<label><input type="checkbox" data-k="${k}" ${mode === 'enhanced' && on[k] ? 'checked' : ''} ${mode === 'original' ? 'disabled' : ''}><span><b>${n}</b><small>${d}</small></span></label>`).join('');
+    feat.querySelectorAll('input').forEach(c => c.onchange = () => { on[c.dataset.k] = c.checked; });
+  };
+  paint();
+  cards.querySelectorAll('input').forEach(i => i.onchange = () => { sp = +i.value; });
+  modes.querySelectorAll('input').forEach(i => i.onchange = () => { mode = i.value; paint(); });
+  showScreen('setup');
+  return new Promise(res => {
+    $('#sBack').onclick = () => res(null);
+    $('#sGo').onclick = () => res({ sp, rules: Object.fromEntries(FEATURES.map(f => [f[0], mode === 'enhanced' && !!on[f[0]]])) });
+  });
+}
 async function startMenu() {
   Music.play('title');
-  let hasSave = false; try { hasSave = !!localStorage.getItem(SAVE_KEY); } catch (e) {}
-  const pick = await ask({
-    title: 'Julius Caesar · Der Gallische Krieg', img: 'titel',
-    html: `<p>Du bist Heerführer Roms. Führe vier Legionen durch Gallien und binde alle 30 Stämme durch Friedens- oder Freundschaftsverträge an Rom – mit Gold, Diplomatie oder Schwert.</p>
-      <label class="hint">Spielstärke<select id="sp">${[1, 2, 3, 4, 5].map(i => `<option value="${i}">${i} – ${SP_TEXT[i]}</option>`).join('')}</select></label>
-      <label class="hint" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="mercs" checked style="margin-top:3px"><span><b>Erweiterte Regeln:</b> Söldner anwerben (3 Denare/Mann), gemeinsamer Angriff mehrerer Legionen, Tribut nach Reichtum des Stammes, Geiseln als Freiwillige (5 % pro Jahr, 5 Jahre Dienst). Abgewählt gelten die Originalregeln.</span></label>
-      <p class="hint">Fan-Nachbau nach den Regeln des C64-Klassikers (Kingsoft, 1989), rekonstruiert per Reverse Engineering. Grafik und Code sind neu.</p>`,
-    buttons: [{ label: 'Regeln', value: 'help' }, ...(hasSave ? [{ label: 'Spielstand laden', value: 'load' }] : []), { label: 'Neues Spiel', value: d => 'new' + d.querySelector('#sp').value + (d.querySelector('#mercs').checked ? 'm' : ''), cls: 'primary' }],
-  });
-  if (pick === 'help') { await help(); return startMenu(); }
-  if (pick === 'load') { if (load()) return begin(); }
-  G = JC.createGame(parseInt(String(pick).replace('new', '')) || 1, Math.random, (f => ({ mercs: f, combined: f, wealth: f, slaves: f }))(String(pick).endsWith('m'))); sel = 0; actLegion = 1; begin();
-  log('Die Legionen stehen bereit.');
+  for (;;) {
+    const pick = await titleScreen();
+    if (pick === 'help') { await help(); continue; }
+    if (pick === 'load') { if (load()) { hideScreens(); return begin(); } continue; }
+    const cfg = await setupScreen(); if (!cfg) continue;
+    G = JC.createGame(cfg.sp, Math.random, cfg.rules); sel = 0; actLegion = 1; hideScreens(); begin();
+    log(`Die Legionen stehen bereit (${SP_NAMES[cfg.sp]}, ${modeName(cfg.rules)}).`); return;
+  }
 }
 function help() {
   return note('Regeln und Taktik', `<p><b>Ziel:</b> Alle 30 Stämme brauchen einen Vertrag (Frieden oder Freundschaft).</p>
@@ -483,7 +645,9 @@ function help() {
     <p><b>Krieg:</b> Wähle Stamm und Legion. Kleine Stämme besiegt eine Legion, bei großen verblutet sie. Nach einem Drittel Verlusten bieten die Gallier Kapitulation an. Eroberung: Beute und Geiseln wählen; zu viel erzürnt die Volksgruppe, ein Stamm wird nur vernichtet, wenn alle zu Geiseln werden. Rückzug jederzeit möglich.</p>
     <p><b>Sold:</b> Nach jedem Kampf bestimmt der Sold die Moral (unter ½ Stärke −2, unter 1,1× −1, über 3,1× +1). Moral × 250 = Freiwillige im Winter.</p>
     <p><b>Taktik (aus den Regeln abgeleitet):</b> (1) Große Stämme (über ca. 70 000 Einwohner) zerschlagen jede einzelne Legion; Geld und Diplomatie sind der Weg, ein ganz früher Angriff ist ein Fehler. (2) Kleine Stämme mit Haltung ≤ 3 (Eburonen, Lexovier, Menapier, Osismer) sind ohne Aufruhr zu bezwingen; Kapitulation bringt ½ Bevölkerung in Denaren, Eroberung bis zu 2,3 × Bevölkerung (nimm höchstens die Hälfte und höchstens 10 % Geiseln, sonst Aufruhr). (3) Greife jedes Jahr einen feindlichen Stamm an (auch mit sofortigem Rückzug): das verhindert den allgemeinen Unmut im Winter. (4) Verbündete (Haltung über 10, Freundschaftsvertrag) sind vor der Jahresunruhe sicher und liefern Hilfstruppen. (5) Eine Legion allein bricht an Riesen. Mit „Gemeinsamer Angriff“ kämpfen mehrere Legionen als ein Verband mit der Summe ihrer Stärke; vier Legionen (18 000 Mann) zwingen sogar die Helvetier zur Kapitulation (≈100 000 Denare) bei etwa 3 700 Verlusten. Alternativ rücken Legionen nacheinander nach, die Verluste der Gallier bleiben im Jahr bestehen.</p>
-    <p><b>Erweiterte Regeln:</b> Der Tribut hängt vom Reichtum des Stammes ab (Größe × Volksgruppe: Volcer 1,3 · Gallier 1,0 · Aquitaner 0,9 · Belger 0,8; Friedenstribut = 1000 × Reichtum, nach Eroberung die Hälfte). Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an, dienen 5 Jahre und kehren dann heim; beim Ausscheiden erhalten sie den doppelten Anwerbebetrag (6 Denare).</p>
+    <p><b>Karte (erweiterte Regeln):</b> Die 30 Stämme liegen an ihrer historischen Stelle. Angreifen, Verhandeln und Marschieren geht nur bei Stämmen in Reichweite: Nachbarn der Provinz oder eines befriedeten Stammes. Kämpfende (feindliche) Stämme stecken ihre unbefriedeten Nachbarn mit Unruhe an – Unruheherde im Norden und Westen musst du dir Schritt für Schritt erarbeiten. Winterüberfälle kommen nur von feindlichen Stämmen in Reichweite.</p>
+    <p><b>Diplomatie (erweiterte Regeln):</b> Friedensbedingungen wählen (mehr Tribut, Geiseln, Entschädigung oder mild). Sondierungsgespräche sind kostenlos, aber unsicher. Ein Ultimatum lässt Stämme bei großer Übermacht einknicken (Erfolg erspart den Kampf, Misserfolg bedeutet Krieg). Nach einem Friedensvertrag kann man zusätzliche Geiseln fordern.</p>
+    <p><b>Erweiterte Regeln (Fortsetzung):</b> Der Tribut hängt vom Reichtum des Stammes ab (Größe × Volksgruppe: Volcer 1,3 · Gallier 1,0 · Aquitaner 0,9 · Belger 0,8; Friedenstribut = 1000 × Reichtum, nach Eroberung die Hälfte). Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an, dienen 5 Jahre und kehren dann heim; beim Ausscheiden erhalten sie den doppelten Anwerbebetrag (6 Denare).</p>
     <p><b>Winter:</b> Fixkosten = ½ Soldaten. Tribute bringen Einkommen. Sind Geld oder Legionen weg, ist das Spiel verloren.</p>`);
 }
 

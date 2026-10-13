@@ -83,6 +83,39 @@ g = JC.createGame(1, seeded(1), { slaves: true }); g.cohorts.push({ tribe: 10, n
 g.legions[1].le = 4000; vb = JC.beginBattle(g, 1, 8); vb.RO = 2000; vb.GA = vb.G - 10; vb.n = 0; JC.finishBattle(g, vb);
 assert.equal(g.legions[1].le, 2000); assert.equal(g.cohorts[0].n, 500);
 
+// --- Karte: Erreichbarkeit und Unruhe
+g = JC.createGame(1, seeded(2), { map: true, diplomacy: true });
+assert(JC.reachable(g, 1) && JC.reachable(g, 10) && JC.reachable(g, 21));                         // Nachbarn der Provinz
+assert(!JC.reachable(g, 16) && !JC.reachable(g, 17));                                              // Menapier, Moriner: weit weg
+assert.equal(JC.attackCheck(g, 1, 16).reason, 'unreachable'); assert.equal(JC.canNegotiate(g, 16), false);
+g.tribes[9].vt = 1; assert(JC.reachable(g, 14) && JC.reachable(g, 23));                          // Haeduer kontrolliert -> Lingonen, Senonen erreichbar
+g.tribes[14].vt = 1; g.tribes[23].vt = 1; g.tribes[15].vt = 1; g.tribes[20].vt = 1;
+assert(JC.reachable(g, 4)); g.tribes[4].vt = 1; assert(JC.reachable(g, 17));                       // Bellovacer -> Moriner
+const wo = JC.createGame(1, seeded(2)); assert(JC.reachable(wo, 16));                              // ohne Regel: alles erreichbar
+// Unruheherd: Helvetier (feindlich) stecken Nachbarn an
+g = JC.createGame(1, seeded(11), { map: true }); for (let k = 0; k < 40; k++) { g.tribes[24].br = 3; g.tribes[1].br = 3; JC.beginYear(g); }
+assert(g.tribes[24].br <= 3);                                                                        // Sequaner/Allobroger grenzen an Helvetier
+let spread = 0; for (let k = 0; k < 200; k++) { g = JC.createGame(1, Math.random, { map: true }); g.tribes[24].br = 6; JC.beginYear(g); if (g.unrest.some(u => u.from === 10 && u.to === 24)) spread++; }
+assert(spread > 20 && spread < 100, 'Ausbreitungsrate ' + spread);                                  // ca. 30 %
+// --- Diplomatie: Friedensbedingungen
+g = JC.createGame(1, seeded(1), { diplomacy: true, wealth: true });
+const t8 = g.tribes[8];
+let off = JC.peaceOffer(g, 8, 'balanced'); assert.equal(off.br, 5); assert.equal(off.hostages, Math.floor(t8.be / 10));
+assert.equal(JC.peaceOffer(g, 8, 'tribute').tribute, 2 * off.tribute); assert(JC.peaceOffer(g, 8, 'hostages').hostages > 2 * off.hostages);
+assert.equal(JC.peaceOffer(g, 8, 'gold').denars, 2 * off.denars); assert.equal(JC.peaceOffer(g, 8, 'mild').br, 7);
+assert.equal(JC.peaceOffer(JC.createGame(1, seeded(1)), 8, 'gold').denars, off.denars);          // klassisch: nur ausgewogen
+// Ultimatum: Chance
+g.legions[1].le = g.legions[2].le = g.legions[3].le = g.legions[4].le = 9000;
+assert(JC.ultimatumChance(g, [1, 2, 3, 4], 8) >= 0.89); assert.equal(JC.ultimatumChance(g, 1, 10), 0);   // Uebermacht vs Riese
+let okc = 0, br0 = 0; for (let k = 0; k < 300; k++) { const h = JC.createGame(1, Math.random, { diplomacy: true }); h.legions[1].le = 9000; const u = JC.ultimatum(h, 1, 8); if (u.ok) okc++; else if (h.tribes[8].br === 0) br0++; }
+assert(okc > 0 && okc + br0 === 300);
+g = JC.createGame(1, seeded(3), { diplomacy: true }); g.tribes[9].br = 9; JC.ultimatum(g, 1, 9); // Misserfolg gegen Haeduer (Riesen? 56432 pop) -> Aufruhr der Gallier
+assert(g.tribes[9].br === 0 || g.tribes[9].br === 9);
+// Sondierung und Geiseln fordern
+g = JC.createGame(1, seeded(4), { diplomacy: true }); let efs = []; for (let k = 0; k < 200; k++) { const h = JC.createGame(1, Math.random, { diplomacy: true }); h.tribes[9].br = 9; efs.push(JC.negotiate(h, 9, 8).ef); }
+assert(efs.includes(1) && efs.includes(0));
+g = JC.createGame(1, seeded(4), { diplomacy: true }); g.tribes[8].vt = 1; g.tribes[8].br = 5; const be0 = g.tribes[8].be; assert.equal(JC.negotiate(g, 8, 10).ef, 1); assert.equal(g.tribes[8].gr, Math.floor(be0 / 40)); assert.equal(g.tribes[8].br, 3);
+
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {
   const g = JC.createGame(sp, seeded(seed)); let years = 0;

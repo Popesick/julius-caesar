@@ -13,30 +13,38 @@ function fight(g, y, x, take) {                          // take: 'peace' | 'con
     break;
   }
   JC.finishBattle(g, b);
-  const L = g.legions[y]; JC.payLegion(g, y, Math.min(g.rv, Math.floor(L.le * 1.2)));
+  const L = g.legions[y]; JC.payLegion(g, y, Math.min(g.rv, Math.floor(L.le * 0.55)));
   return b.n === 0;
 }
 
+// Soeldner nur so viele, dass nach dem Kauf noch 1,5 Jahre Unterhalt (Soldaten/2) im Vermoegen bleiben: rv - 3N >= 0.75 (S + N)
+function hire(g) {
+  if (!MERCS) return;
+  const S = g.legions.slice(1).reduce((a, l) => a + l.le, 0);
+  const income = g.tribes.reduce((a, t) => a + (t ? t.tr : 0), 0);
+  const N = Math.min(Math.floor((g.rv - 0.75 * S) / 3.75), 2 * (income + 0.12 * g.rv) - S); if (N <= 0) return;      // Unterhalt dauerhaft tragbar
+  for (let i = 1; i <= 4; i++) JC.hireMercenaries(g, i, Math.min(9000 - g.legions[i].le, Math.floor(N / 4)));
+}
 function play(sp, seed) {
-  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS, wealth: MERCS, slaves: MERCS }); let years = 0; const rnd = g.rnd;
+  const g = JC.createGame(sp, seeded(seed), { mercs: MERCS, combined: MERCS, wealth: MERCS, slaves: MERCS, map: MERCS, diplomacy: MERCS }); let years = 0; const rnd = g.rnd;
   while (!g.over && years < 40) {
     years++;
-    if (MERCS) for (let i = 1; i <= 4; i++) { const want = Math.min(9000 - g.legions[i].le, Math.floor(Math.max(0, g.rv - 25000) / 3 / 4)); JC.hireMercenaries(g, i, want); }
+    hire(g);
     // 0) Verband: mit allen Legionen den groessten feindlichen/freien Riesen zur Kapitulation zwingen (Komfort-Regel)
     if (MERCS) {
       const ys = [1, 2, 3, 4].filter(i => g.legions[i].le > 2000), tot = ys.reduce((a, i) => a + g.legions[i].le, 0);
-      const giants = g.tribes.filter(t => t && !t.ex && t.vt === 0 && t.be >= SMALL).sort((a, b) => b.be - a.be);
+      const giants = g.tribes.filter(t => t && !t.ex && t.vt === 0 && t.be >= SMALL && JC.reachable(g, t.id)).sort((a, b) => b.be - a.be);
       const tgt = giants.find(t => tot >= Math.floor(t.be / 5) * 0.42);
       if (tgt && ys.length) {
         const b = JC.beginBattle(g, ys, tgt.id); let ev;
         for (let i = 0; i < 500; i++) { ev = JC.stepBattle(g, b); if (ev.type !== 'round') break; }
         if (ev.type === 'capitulation') JC.acceptCapitulation(g, b); else if (ev.type === 'conquered') JC.resolveConquest(g, b, Math.floor(ev.maxLoot / 2), Math.floor(g.tribes[tgt.id].be / 10));
-        JC.finishBattle(g, b); JC.payLegions(g, ys, Math.min(g.rv, Math.floor(JC.auxiliaries(g) * 0 + ys.reduce((a, i) => a + g.legions[i].le, 0) * 1.2)));
-        if (MERCS) for (let i = 1; i <= 4; i++) JC.hireMercenaries(g, i, Math.min(9000 - g.legions[i].le, Math.floor(Math.max(0, g.rv - 25000) / 3 / 4)));
+        JC.finishBattle(g, b); JC.payLegions(g, ys, Math.min(g.rv, Math.floor(JC.auxiliaries(g) * 0 + ys.reduce((a, i) => a + g.legions[i].le, 0) * 0.55)));
+        hire(g);
       }
     }
     // 1) kleine, leichte Staemme erobern (BR<=3 zuerst: kein Aufruhr der Volksgruppe)
-    const targets = g.tribes.filter(t => t && !t.ex && t.vt === 0 && t.be < SMALL).sort((a, b) => a.br - b.br || a.be - b.be);
+    const targets = g.tribes.filter(t => t && !t.ex && t.vt === 0 && t.be < SMALL && JC.reachable(g, t.id)).sort((a, b) => a.br - b.br || a.be - b.be);
     let used = 0;
     for (const t of targets) {
       if (used >= 4) break;
@@ -46,7 +54,7 @@ function play(sp, seed) {
       if (JC.checkVictory(g)) break;
     }
     // 2) Feindschaft ruhig halten: jedes Jahr einen Angriff auf einen feindlichen Stamm (setzt KF zurueck), sofort Rueckzug
-    const hostile = g.tribes.filter(t => t && !t.ex && t.br === 0);
+    const hostile = g.tribes.filter(t => t && !t.ex && t.br === 0 && JC.reachable(g, t.id));
     if (hostile.length) { const y = [1, 2, 3, 4].find(i => g.legions[i].le > 500); if (y) { const b = JC.beginBattle(g, y, hostile[0].id); JC.retreat(g, b); JC.finishBattle(g, b); JC.payLegion(g, y, Math.min(g.rv, g.legions[y].le)); } }
     // 3) Diplomatie: 5 Versuche - Freundschaft, sonst guenstigste Geschenke
     for (let k = 0; k < 5; k++) {
@@ -54,7 +62,8 @@ function play(sp, seed) {
       const ally = cand.find(t => t.br > 10 && t.vt < 2); if (ally) { JC.negotiate(g, ally.id, 1); continue; }
       const price = t => Math.floor((t.be + 1) / (t.br + 1)) + 1;
       const pool = cand.filter(t => t.vt < 2 && !(t.vt === 1 && t.br > 4 && t.br <= 10 && false)).sort((a, b) => price(a) / 2 - price(b) / 2);
-      const p = pool.find(t => price(t) < g.rv * 0.9); if (!p) break;
+      const reserve = g.legions.slice(1).reduce((a, l) => a + l.le, 0) * 0.75;      // 1,5 Jahre Unterhalt zurueckhalten
+      const p = pool.find(t => price(t) < g.rv - reserve); if (!p) break;
       JC.negotiate(g, p.id, 2, price(p));
     }
     if (JC.checkVictory(g)) break;

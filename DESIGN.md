@@ -459,7 +459,11 @@ Straßen, Legionsmarsch mit Zeitkosten, Ton, Mehrspieler im Spielrunde-Stil.
 | Reichtum | Tribut hängt von der Größe des Stammes ab: `Faktor = Ausgangsbevölkerung / 100 000 × Volksgruppe` (Belger 0,8 · Gallier 1,0 · Aquitaner 0,9 · Volcer 1,3, die Gewichte sind Erfindung des Nachbaus), mindestens 0,25. Friedenstribut = 1000 × Faktor (auf 50 gerundet), nach Eroberung die Hälfte, „Tribut erhöhen“ +2 × Basis bis 4 × Basis. Summe aller Friedenstribute ≈ 27 800 (Original: 30 000). Anzeige als ★ in der Stammeskarte. |
 | Geiseln als Freiwillige | Jedes Jahr schließen sich 5 % der Geiseln jedes Stammes kostenlos den Legionen an (auf die schwächsten Legionen verteilt). Nach 5 Jahren scheiden sie aus, kehren zu ihrem Stamm zurück (Bevölkerung steigt) und erhalten den doppelten Anwerbebetrag (6 Denare), der in den Jahresbericht einfließt. Verluste der Legion treffen die Freiwilligen anteilig. |
 
-Im Originalmodus (Haken abgewählt) gelten die Regeln aus Abschnitt 7 unverändert.
+| Historische Karte | Die 30 Stämme liegen an ihrer historischen Stelle (Schwerpunkt des Stammesgebiets nach „De Bello Gallico“, Näherung; Projektion Länge × cos 47°). 59 Nachbarschaftskanten bilden einen Graphen; die Provinz grenzt an Allobroger, Vocontier, Rutener, Arverner, Sotiaten und Helvetier. **Erreichbar** ist ein Stamm, wenn er an die Provinz oder einen kontrollierten Stamm (Frieden, Bündnis, vernichtet) grenzt. Angriff, Marsch und Verhandlung gehen nur bei erreichbaren Stämmen; die entferntesten (Menapier, Moriner) liegen 5 Schritte entfernt. |
+| Ausbreitende Unruhe | Jedes Jahr steckt jeder feindliche (Haltung 0), nicht kontrollierte Stamm jeden unkontrollierten Nachbarn (ohne Freundschaft) mit 30 % Wahrscheinlichkeit an: Haltung −1. Winterüberfälle kommen nur von feindlichen Stämmen in Reichweite. |
+| Erweiterte Diplomatie | **Friedensbedingungen** bei Kapitulation und Ultimatum: ausgewogen, mehr Tribut (×2, Haltung 4), mehr Geiseln (×2,5), Kriegsentschädigung (Gold ×2) oder milder Friede (¼, Haltung 7). **Tributstufe** bei Eroberung (niedrig/normal/hoch). **Sondierungsgespräch** (kostenlos, Erfolg `0,15 + 0,07 × Haltung`, +1 Haltung). **Zusätzliche Geiseln fordern** (Friedensvertrag, Haltung ≥ 3: 2,5 % der Bevölkerung, Haltung −2). **Ultimatum**: Erfolgschance `(Stärke/Krieger − 1)/1,5 + 0,02 × Haltung`, höchstens 90 %, bei Krieg ×0,6. Erfolg = Unterwerfung ohne Kampf (halbe Entschädigung und Geiseln), Misserfolg = Krieg (Haltung 0, Aufruhr der Volksgruppe bei Haltung > 3). |
+
+Im Originalmodus (Haken abgewählt) gelten die Regeln aus Abschnitt 7 unverändert. Im Spiel wählt der Startbildschirm Schwierigkeitsgrad (Spielstärke 1–5) und Modus (Original oder Enhanced mit einzeln abwählbaren Regeln).
 
 ### 9.1 Komfort-Regeln und Balance (nicht im Original)
 
@@ -482,7 +486,7 @@ Gemessene Eckwerte (✔ per Engine):
   Anzahl × 600 Mann) mehr Soldaten kosten, als nachwachsen. Mit Söldnern überlebt er statt 9 im Schnitt 35 Jahre, kommt aber nur auf ca. 12–13
   befriedete Stämme. * **Mit Verband-Angriff gewinnbar:** Vier Legionen (18 000 Mann) kippen den Kampf gegen die Helvetier in den günstigen Bereich
   (`3·RO − GA > 500`): 100 % Kapitulation bei ca. 3 700 eigenen Verlusten und ≈100 000 Denare Auszahlung. Mit Söldnern und Verband-Angriff
-  gewinnt der Bot auf Stufe 1–3 in 198–200 von 200 Spielen (Ø ca. 19–22 Jahre). Strategie: Söldner auf 9000 auffüllen, Verband gegen den
+  gewinnt der Bot (mit Karten- und Diplomatieregeln, vorsichtiger Haushaltsführung) alle Stufen in 200 von 200 Spielen (Ø ca. 18 Jahre). Strategie: Söldner auf 9000 auffüllen, Verband gegen den
   größten Gegner, Geld in Gaben/Bündnisse, kleine Stämme einzeln. Ohne Komfort-Regeln (Originalmodus) gewinnt der Bot nie.
 
 ## 10. Offen / nicht untersucht (○)
