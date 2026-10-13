@@ -8,9 +8,9 @@
   const MAX_LEGION = 9000, MAX_MONEY = 990000, N_TRIBES = 30;
 
   // ---------------------------------------------------------------- Start
-  function createGame(sp = 1, rnd = Math.random) {
+  function createGame(sp = 1, rnd = Math.random, rules = {}) {
     const g = {
-      sp, rnd, year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
+      sp, rnd, rules: { mercs: false, ...rules }, year: 1, rv: 30000,                       // RV: Vermoegen in Denaren
       kf: 0, lastX: 0, vs: 0, ga: 0,                     // KF: Winterangriff im Vorjahr, VS/GA: laufende Belagerung
       vx: 0, negotiated: [],                             // VX/V(): Verhandlungen dieses Jahres
       tribes: [null], legions: [null], over: null,
@@ -253,11 +253,37 @@
     n = Math.max(0, Math.min(Math.floor(n), info.maxVolunteers, info.free));
     L.le = L.le + info.hi + n; return L.le;
   }
+
+  // ---------------------------------------------------------------- Komfort-Regeln (nicht im Original)
+  const MERC_COST = 3;                                              // Denare pro angeworbenem Soeldner
+  // Soeldner jederzeit anwerben: Legion bis max. 9000 Mann auffuellen. Original: nur Winter-Freiwillige.
+  function hireMercenaries(g, i, n) {
+    if (!g.rules || !g.rules.mercs) return 0;
+    const L = g.legions[i];
+    n = Math.max(0, Math.min(Math.floor(n), MAX_LEGION - L.le, Math.floor(g.rv / MERC_COST)));
+    L.le += n; g.rv -= n * MERC_COST;
+    if (n > 0) L.mv = Math.max(0, L.mv - 0);                        // Moral bleibt unveraendert
+    return n;
+  }
+  // Lageeinschaetzung: simuliert Gefechte auf einer Kopie (veraendert g nicht).
+  function assess(g, y, x, runs = 150) {
+    const out = { capitulation: 0, conquered: 0, defeat: 0, loss: 0, theirLoss: 0 };
+    for (let k = 0; k < runs; k++) {
+      const c = JSON.parse(JSON.stringify({ ...g, rnd: undefined })); c.rnd = Math.random;
+      const b = beginBattle(c, y, x); let ev;
+      for (let i = 0; i < 600; i++) { ev = stepBattle(c, b); if (ev.type !== 'round') break; }
+      if (ev.type === 'capitulation') out.capitulation++; else if (ev.type === 'conquered') out.conquered++; else out.defeat++;
+      out.loss += b.R - Math.max(0, b.RO); out.theirLoss += b.G - Math.max(0, b.GA);
+    }
+    for (const k of ['capitulation', 'conquered', 'defeat']) out[k] = Math.round(out[k] / runs * 100);
+    out.loss = Math.round(out.loss / runs); out.theirLoss = Math.round(out.theirLoss / runs);
+    return out;
+  }
   function nextYear(g) { g.year += 1; return beginYear(g); }
 
   const API = { createGame, beginYear, nextYear, pacified, checkVictory, attitudeLabel,
     canNegotiate, negotiate, negotiationOptions, attackCheck, beginBattle, stepBattle, retreat,
     acceptCapitulation, resolveConquest, finishBattle, payLegion, moveLegion,
-    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, MAX_LEGION };
+    winterAttack, budget, closeBudget, auxiliaries, recruitInfo, recruit, hireMercenaries, assess, MERC_COST, MAX_LEGION };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.JC = API;
 })(typeof window !== 'undefined' ? window : globalThis);

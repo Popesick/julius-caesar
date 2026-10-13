@@ -450,6 +450,27 @@ Straßen, Legionsmarsch mit Zeitkosten, Ton, Mehrspieler im Spielrunde-Stil.
 
 ---
 
+### 9.1 Komfort-Regeln und Balance (nicht im Original)
+
+Beim Spielen des Nachbaus zeigte sich, dass das Original sehr hart ist: Es gibt **keinen direkten Nachschub** (nur Winter-Freiwillige
+bis Moral × 250), und Riesenstämme zerschlagen jede einzelne Legion. Der Nachbau bietet deshalb beim Start die wählbare Komfort-Regel
+**Söldner anwerben** (3 Denare pro Mann, jederzeit, bis 9000 Mann). Außerdem zeigt der Angriffsdialog eine **Lageeinschätzung**
+(Simulation auf einer Kopie des Spielstands), und nach einem abgebrochenen Angriff können **weitere Legionen nachrücken**. Letzteres
+nutzt nur die Originalmechanik: Die Restkrieger (`VS`/`GA`) heilen innerhalb des Jahres nicht.
+
+Gemessene Eckwerte (✔ per Engine):
+
+* Kapitulation wird angeboten, sobald der Gegner ⅓ seiner (Rest-)Stärke verloren hat. Ab ca. 66 000 Einwohnern kippt der Kampf in den
+  1:1-Austausch; die römische Legion flieht nach 50 % Verlust. Helvetier (41 825 Krieger) und Bellovacer (51 246) sind deshalb mit
+  vier Legionen nicht zu zwingen; ihre Bevölkerung sinkt pro gefallenem Krieger nur um 1, die Kriegerzahl also um ⅕.
+* Alle 30 Stämme rein diplomatisch auf Freundschaft zu bringen kostet rund **1,0 Mio. Denare** (Helvetier 210 000, Bellovacer 130 000,
+  Moriner/Sotiaten je ca. 50 000, die 13 kleinen Stämme je 4 000–22 000). Das Vermögen ist bei 990 000 gedeckelt.
+* Geld kommt aus Kapitulationen (½ Bevölkerung), Beute (bis 2,3 × Bevölkerung) und Tributen.
+* Ein Strategie-Bot (`remake/strategy-bot.js`: erobert kleine Stämme, hält die Feindschaft ruhig, verschenkt Geld, verbündet) gewinnt
+  **nie**: Er gerät in eine Armutsfalle mit dauerhaft ca. 8 feindlichen Stämmen, deren Winterüberfälle (je Legion bis zu
+  Anzahl × 600 Mann) mehr Soldaten kosten, als nachwachsen. Mit Söldnern überlebt er statt 9 im Schnitt 35 Jahre, kommt aber nur auf ca. 12–13
+  befriedete Stämme. Eine bewiesene Gewinnstrategie gibt es also noch nicht; die Taktiktipps im Spiel sind abgeleitete Regelkenntnis.
+
 ## 10. Offen / nicht untersucht (○)
 
 * **Sprites** (Karten-Legionen) und die Titelmusik/Ton: nicht untersucht. Die Szenen- und Titelgrafik ist dekodiert (Abschnitt 12).

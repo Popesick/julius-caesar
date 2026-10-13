@@ -51,6 +51,13 @@ g.tribes[1].hi = 1000; g.tribes[2].hi = 1000; assert.equal(JC.auxiliaries(g), 50
 assert.equal(JC.recruit(g, 1, 99999), 4500 + 500 + 5 * 250);       // gedeckelt durch Moral*250
 g.legions[2].le = 8700; assert.equal(JC.recruit(g, 2, 50), 9000);
 
+// --- Komfort-Regel Soeldner (nicht im Original)
+g = JC.createGame(1, seeded(1)); assert.equal(JC.hireMercenaries(g, 1, 100), 0);              // klassisch: aus
+g = JC.createGame(1, seeded(1), { mercs: true }); assert.equal(JC.hireMercenaries(g, 1, 99999), 4500);
+assert.equal(g.legions[1].le, 9000); assert.equal(g.rv, 30000 - 4500 * JC.MERC_COST);
+g.rv = 10; assert.equal(JC.hireMercenaries(g, 2, 99999), 3);
+const as = JC.assess(JC.createGame(1, seeded(3)), 1, 10, 40); assert.equal(as.defeat, 100);   // Helvetier brechen eine Legion
+
 // --- Bot-Simulation (Zufallsspiel, soll nie abstuerzen)
 function bot(sp, seed) {
   const g = JC.createGame(sp, seeded(seed)); let years = 0;
