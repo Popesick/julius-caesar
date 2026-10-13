@@ -1,0 +1,4 @@
+# Aus dem Originalspiel abgeleitete Daten (Speicherabbilder, BASIC-Listing, Grafiken) bleiben lokal.
+analysis/
+__pycache__/
+.claude/
