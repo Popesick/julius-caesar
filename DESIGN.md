@@ -452,9 +452,7 @@ Straßen, Legionsmarsch mit Zeitkosten, Ton, Mehrspieler im Spielrunde-Stil.
 
 ## 10. Offen / nicht untersucht (○)
 
-* **Grafik, Sprites, Zeichensatz** und das Titelbild: Die Bereiche sind lokalisiert (Overlay 1 → $D000–$FFFF, Overlay 4),
-  aber nicht dekodiert (Mehrfarbmodus-Details und Bildschirmaufteilung durch den Raster-IRQ bei $C06C wurden nicht ausgewertet).
-* `SCHLUSSBILD` (Schlussbild) nicht entpackt.
+* **Sprites** (Karten-Legionen) und die Titelmusik/Ton: nicht untersucht. Die Szenen- und Titelgrafik ist dekodiert (Abschnitt 12).
 * Die SYS-Routinen wurden nur anhand ihres Aufrufkontexts klassifiziert; ihr Innenleben (Joystick-Entprellung, Cursorführung
   der Karte, Animationen) ist nicht dokumentiert.
 * Ton: Das SID wird am Programmstart gelöscht; Musik wurde nicht gefunden.
@@ -474,3 +472,16 @@ Straßen, Legionsmarsch mit Zeitkosten, Ton, Mehrspieler im Spielrunde-Stil.
 | Overlays | Fastloader $9824; ACPTR ($EE13) wird aus der Datei gespeist |
 
 Die Rohdaten aller Stufen stehen nach `python3 tools/reverse.py` in `analysis/`.
+
+---
+
+## 12. Grafikformat (✔ dekodiert)
+
+* **Titelbild** (römische Stadt mit Kolosseum) und **Schlussbild** (`SCHLUSSBILD`, Triumphbogen, Text „Sieg über Gallien! Ave, Caesar! …“):
+  Hires-Bitmaps 320×200 bei $2000. Das Schlussbild wird vom Fastloader-Dekompressor ($9824) nach $2000 entpackt.
+* **Szenenbilder** (Legionär, Caesar, Reiter, Senator, Zenturio, Standarten): 144×200 px, Schwarz auf einfarbigem Hintergrund
+  ($D021 je Szene). Sie bestehen aus 450 Kacheln und nutzen zwei Zeichensätze: $A000 für die obere und $A800 für die untere
+  Bildhälfte; der Raster-IRQ ($C06C, Splitzeile in $C005) schaltet `$D018` um. VIC-Bank 2 (`$DD00=$C5`), Bildschirm $8000, Farb-RAM schwarz.
+* Zusammengesetzt werden die Bilder durch Blit-Routinen ($C006, $C02F) aus Quelldaten bei $D000–$FFFF (Overlay 1, dorthin kopiert).
+* Reproduzierbar mit `python3 tools/scenes.py` (erzeugt `analysis/gfx/`).
+* Der Nachbau nutzt photorealistische Neuinterpretationen dieser Motive (`remake/assets/`, erzeugt mit ChatGPT).
